@@ -4,22 +4,29 @@ import pathlib
 import openpyxl
 from openpyxl.styles import Protection
 
-from websams.model.examclass import ExamClass
+from model.examclass import ExamClass
 
 
 class ExamRun:
 
     def __init__(self, exam_year):
-        self.location = 'websams/model/'
+        self.location = 'model/'
         self.exam_year = exam_year
         # self.exam_year = '1920'
         self.full_exam = self.exam_year + 'exam'
-        self.home_folder = os.path.abspath(os.getcwd())                         #/websams
-        self.exam_home = os.path.join(self.home_folder, self.full_exam)         #/websams/$$$$exam
 
-        # full path to exam-run.xlsm
-        self.exam_run_file = os.path.join(self.home_folder, self.exam_year + '-exam-run.xlsm')
-        self.exam_template_folder = os.path.join(self.home_folder, 'template', 'exam')
+        # /websams
+        self.websams_root_folder = os.path.abspath(os.getcwd())
+        # /websams/2021
+        self.schyear_home_folder = os.path.join(self.websams_root_folder, self.exam_year)
+        # /websams/2021/2021-exam-run.xlsm
+        self.exam_run_file = os.path.join(self.schyear_home_folder, self.exam_year + '-exam-run.xlsm')
+        # /websams/2021/2021exam   (created by Assessment)
+        self.assessment_root_folder = os.path.join(self.schyear_home_folder, self.exam_year + 'exam')
+        # /websams/2021/_template
+        self.exam_template_folder = os.path.join(self.schyear_home_folder, '_template', 'exam')
+        # should copy template to exam_home *first* time
+
         self.exam_run_df = None
         self.exam_class_list = {}
         self.exam_subject = None
@@ -38,6 +45,7 @@ class ExamRun:
         self.drop_df = None
         self.promotion = None
         self.assessment_dict = {}
+        self.ct_dict = {}
         # 145	O	s3bchi	s3	s3b
         # class	s3b	chi	080	s3bchi
         # tch	CS	CS	rmC
@@ -51,13 +59,35 @@ class ExamRun:
         self.stuinfo_df = pd.read_excel(self.exam_run_file, sheet_name='stuinfo')
         return len(self.stuinfo_df)
 
+    def load_ct_to_dict(self):
+        # load class teachers from exam-run.xlsm
+        if self.ct_dict:
+            pass
+        else:
+            ct_df = pd.read_excel(self.exam_run_file, sheet_name='ct')
+            ct_df['classcode2'] = ct_df['classcode']
+            ct_df.set_index('classcode2', inplace=True)
+            self.ct_dict = ct_df[['ct1', 'ct2']].to_dict('index')
+        return self.ct_dict
+
+    def markfile_name(self, class_type, exam_type, class_level, group_code, subject, teacher):
+        if class_type == 'group':
+            temp = '_'.join([self.exam_year, exam_type, class_level, group_code, subject, teacher.lower()]) + '.xlsx'
+            temp = self.exam_year + exam_type + class_level + group_code + subject + '.xlsx'
+
+        else:
+            temp = '_'.join([self.exam_year, exam_type, group_code, subject, teacher.lower()]) + '.xlsx'
+            temp = self.exam_year + exam_type + group_code + subject + '.xlsx'
+
+        return temp
+
     def load_drop(self):
         print('load stuinfo sheet.')
         self.drop_df = pd.read_excel(self.exam_run_file, sheet_name='drop')
         return len(self.drop_df)
 
     def create_exam_template(self):
-        import openpyxl as openpyxl
+        import openpyxl
         # should run when exam files are created.
         print('exam template will be create.')
         print('stuinfo will be copied to: s123-analysis.xlsm, s456-analysis.xlsm, view-all.xlsm')
@@ -134,7 +164,7 @@ class ExamRun:
         print(len(assessment_df))
         assessment_filter = assessment_df[assessment] == 'O'
         assessment_df = assessment_df[assessment_filter]
-        temp_dict = assessment_df.to_dict(orient='records')
+        temp_dict = assessment_df.to_dict('records')
 
         for item in temp_dict:
             # print(item['Key'])
@@ -185,196 +215,175 @@ class ExamRun:
         # print(len(self.exam_class_list))
 
         # build folders first
-        folder_to_create = os.path.join(self.exam_home, 'markfile_src')
-        if not os.path.exists(folder_to_create):
-            try:
-                print('mkdir', folder_to_create)
-                os.mkdir(folder_to_create)
-            except OSError:
-                print('Error: {} is not ready.'.format(folder_to_create))
+        markfile_src_root_folder = os.path.join(self.assessment_root_folder, 'markfile_src')
+        os.makedirs(markfile_src_root_folder, exist_ok=True)
+
         for folder in ['ut1', 'exam1', 'ut2', 'exam2', 'mock']:
-            folder_to_create = os.path.join(self.exam_home, 'markfile_src', folder)
-            if not os.path.exists(folder_to_create):
-                try:
-                    print('mkdir', folder_to_create)
-                    os.mkdir(folder_to_create)
-                except OSError:
-                    print('Error: {} is not ready.'.format(folder_to_create))
+            folder_to_create = os.path.join(markfile_src_root_folder, folder)
+            os.makedirs(folder_to_create, exist_ok=True)
 
         num_of_markfiles = 0
         for key, exam_class in self.exam_class_list.items():
+
+            class_type = exam_class.class_type
+            class_level = exam_class.classlevel     # s6
+            group_code = exam_class.groupcode       # s6x / x1 / x2 / x3
+            subject = exam_class.subject
             exam_type = exam_class.create
             classcode = exam_class.classcode.upper()
+            teacher = exam_class.tch
+
             # print(exam_class)
             # print(exam_class.class_type)
             # a classlevel filter for restrictive test run
-            if exam_class.classlevel.lower() in ['s1', 's2', 's3', 's4', 's5', 's6']:
+            if exam_class.select == 'O':
 
-                if exam_class.class_type == 'class':
-                    # filter dte/hec students for s2 and s3
-                    if exam_class.subject.lower() in ['dte', 'hec'] and exam_class.classlevel.lower() in ['s2', 's3']:
-                        class_df = self.stuinfo_df[(self.stuinfo_df.classcode.isin([classcode]))
-                            & (self.stuinfo_df['DH'] == exam_class.subject)][markfile_col_list]
-                        class_dict = class_df.to_dict(orient='records')
+                if exam_class.classlevel.lower() in ['s1', 's2', 's3', 's4', 's5', 's6']:
 
-                    elif exam_class.subject.lower() in ['pedm', 'pedf']:
-                        sex_code = exam_class.subject.lower()[-1]
-                        class_df = self.stuinfo_df[(self.stuinfo_df.classcode.isin([classcode]))
-                            & (self.stuinfo_df['sex'] == sex_code.upper())][markfile_col_list]
-                        class_dict = class_df.to_dict(orient='records')
+                    if exam_class.class_type == 'class':
+                        # filter dte/hec students for s2 and s3
+                        if exam_class.subject.lower() in ['dte', 'hec'] and exam_class.classlevel.lower() in ['s2', 's3']:
+                            class_df = self.stuinfo_df[(self.stuinfo_df.classcode.isin([classcode]))
+                                & (self.stuinfo_df['DH'] == exam_class.subject)][markfile_col_list]
+                            class_dict = class_df.to_dict('records')
+
+                        elif exam_class.subject.lower() in ['pedm', 'pedf']:
+                            sex_code = exam_class.subject.lower()[-1]
+                            class_df = self.stuinfo_df[(self.stuinfo_df.classcode.isin([classcode]))
+                                & (self.stuinfo_df['sex'] == sex_code.upper())][markfile_col_list]
+                            class_dict = class_df.to_dict('records')
+
+                        else:
+                            class_df = self.stuinfo_df[self.stuinfo_df.classcode.isin([classcode])][markfile_col_list]
+                            class_dict = class_df.to_dict('records')
+
+                    elif exam_class.class_type == 'group':
+                        # print(exam_class.groupcode, exam_class.subject.lower())
+                        if exam_class.groupcode[0] == 'x':
+                            class_df = self.stuinfo_df[(self.stuinfo_df['classlevel'] == exam_class.classlevel.upper())
+                                & (self.stuinfo_df[exam_class.groupcode] == exam_class.subject.lower())][markfile_col_list]
+                            class_dict = class_df.to_dict('records')
+                            # print(class_dict)
+
+                        elif exam_class.groupcode[0] == 'g':
+                            # did not decide for the old s6 mth/m1/m2 split classes
+                            # good for new m1 as x1 elective
+                            # print(subject)
+                            # distinguish m1, m2, mth when 'g'
+                            # so that ok for non-x-subject setting of m1/m2
+                            if exam_class.subject == 'mth':
+                                class_df = self.stuinfo_df[(self.stuinfo_df['classlevel'] == exam_class.classlevel.upper())
+                                    & (self.stuinfo_df[exam_class.subject.lower()] == exam_class.groupcode)][markfile_col_list]
+                                class_dict = class_df.to_dict('records')
+                            elif exam_class.subject in ['m1', 'm2']:
+                                class_df = self.stuinfo_df[(self.stuinfo_df['classlevel'] == exam_class.classlevel.upper())
+                                    & (self.stuinfo_df['m'] == exam_class.subject.lower())][markfile_col_list]
+                                class_dict = class_df.to_dict('records')
+                            else:
+                                class_df = []
 
                     else:
-                        class_df = self.stuinfo_df[self.stuinfo_df.classcode.isin([classcode])][markfile_col_list]
-                        class_dict = class_df.to_dict(orient='records')
+                        print('Error: not class nor group!')
 
-                elif exam_class.class_type == 'group':
-                    # print(exam_class.groupcode, exam_class.subject.lower())
-                    if exam_class.groupcode[0] == 'x':
-                        class_df = self.stuinfo_df[(self.stuinfo_df['classlevel'] == exam_class.classlevel.upper())
-                            & (self.stuinfo_df[exam_class.groupcode] == exam_class.subject.lower())][markfile_col_list]
-                        class_dict = class_df.to_dict(orient='records')
-                        # print(class_dict)
+                    # print(class_dict)
+                    # load mark file template
+                    markfile_template_folder = os.path.join(self.websams_root_folder,
+                                                            'setup',
+                                                            str(self.exam_year) + 'files')
 
-                    elif exam_class.groupcode[0] == 'g':
-                        # did not decide for the old s6 mth/m1/m2 split classes
-                        # good for new m1 as x1 elective
-                        # print(subject)
-                        # distinguish m1, m2, mth when 'g'
-                        # so that ok for non-x-subject setting of m1/m2
-                        if exam_class.subject == 'mth':
-                            class_df = self.stuinfo_df[(self.stuinfo_df['classlevel'] == exam_class.classlevel.upper())
-                                & (self.stuinfo_df[exam_class.subject.lower()] == exam_class.groupcode)][markfile_col_list]
-                            class_dict = class_df.to_dict(orient='records')
-                        elif exam_class.subject in ['m1', 'm2']:
-                            class_df = self.stuinfo_df[(self.stuinfo_df['classlevel'] == exam_class.classlevel.upper())
-                                & (self.stuinfo_df['m'] == exam_class.subject.lower())][markfile_col_list]
-                            class_dict = class_df.to_dict(orient='records')
-                        else:
-                            class_df = []
+                    # print(markfile_template_folder, exam_class.subject, exam_class.classlevel.lower(), exam_type)
+                    markfile_template = os.path.join(markfile_template_folder,
+                                                     exam_class.subject,
+                                                     exam_class.classlevel.lower() + 'x.xlsx')
+                    # websams\1920\1920exam\markfile_src\{ exam }
+                    # print(self.home_folder, self.full_exam, 'markfile_src', exam_type, markfile_template)
+                    markfile_src_folder = os.path.join(markfile_src_root_folder, exam_type)
 
-                else:
-                    print('Error: not class nor group!')
+                    # print(markfile_src_folder)
+                    markfile_wb = openpyxl.load_workbook(filename=markfile_template)
+                    websams_ws = markfile_wb['websams']
+                    setup_ws = markfile_wb['setup']
 
-                # print(class_dict)
-                # load mark file template
-                markfile_template_folder = os.path.join(self.home_folder,
-                                                        'setup',
-                                                        str(self.exam_year) + 'files')
+                    # set the file key on setup sheet
+                    setup_ws.cell(column=1, row=2).value = key
+                    setup_ws.cell(column=4, row=1).value = exam_class.subject.lower()
+                    if exam_class.groupcode in ['x1', 'x2', 'x3', 'g1', 'g2']:
+                        setup_ws.cell(column=3, row=1).value = exam_class.groupcode
+                    # write student data on websams sheet by loop through class list dict
+                    # ** need to ensure no strange white spaces in names
+                    currow = 5
+                    col_taken = 45
+                    for stu in class_dict:
+                        # print(stu)
+                        for item in markfile_col:
+                            # print(item)
+                            websams_ws.cell(column=markfile_col[item], row=currow).value = stu[item]
+                        websams_ws.cell(column=col_taken, row=currow).value = 'O'
+                        currow += 1
 
-                print(markfile_template_folder, exam_class.subject, exam_class.classlevel.lower(), exam_type)
-                markfile_template = os.path.join(markfile_template_folder,
-                                                 exam_class.subject,
-                                                 exam_class.classlevel.lower() + 'x.xlsx')
-                # 1920exam\markfile_src\#exam
-                # print(self.home_folder, self.full_exam, 'markfile_src', exam_type, markfile_template)
-                markfile_src_folder = os.path.join(self.home_folder,
-                                                   self.full_exam,
-                                                   'markfile_src',
-                                                   exam_type)
+                    # loop all sheets in workbook
+                    # to lock cells
+                    for sheet in markfile_wb.sheetnames:
+                        if sheet in ['ut1', 'daily1', 'exam1', 'ut2', 'daily2', 'exam2']:
+                            # set unlocked cells first
+                            if exam_class.subject.lower() in ['chi', 'eng']:
+                                col_start = lock_range[exam_class.subject.lower()][sheet][0]
+                                repeat = lock_range[exam_class.subject.lower()][sheet][1]
+                            else:
+                                col_start = lock_range['oth'][sheet][0]
+                                repeat = lock_range['oth'][sheet][1]
+                            # loop the lock_range range
+                            # print(sheet, colStart, repeat)
+                            for r2 in range(5, 49):
+                                for c2 in range(col_start, col_start + repeat):
+                                    markfile_wb[sheet].cell(column=c2, row=r2).protection = Protection(locked=False,
+                                                                                                       hidden=False)
+                        markfile_wb[sheet].protection.password = 'css'
+                        markfile_wb[sheet].protection.sheet = True
+                        markfile_wb[sheet].protection.enable()
 
-                # print(markfile_src_folder)
-                markfile_wb = openpyxl.load_workbook(filename=markfile_template)
-                websams_ws = markfile_wb['websams']
-                setup_ws = markfile_wb['setup']
+                    # build teacher and subject folder first
+                    # for check and create if necessary
+                    teacher_folder = os.path.join(markfile_src_folder, 'teacher')
+                    subject_folder = os.path.join(markfile_src_folder, 'subject')
+                    # os.makedirs(teacher_folder, exist_ok=True)
+                    os.makedirs(subject_folder, exist_ok=True)
 
-                # set the file key on setup sheet
-                setup_ws.cell(column=1, row=2).value = key
-                setup_ws.cell(column=4, row=1).value = exam_class.subject.lower()
-                if exam_class.groupcode in ['x1', 'x2', 'x3', 'g1', 'g2']:
-                    setup_ws.cell(column=3, row=1).value = exam_class.groupcode
-                # write student data on websams sheet by loop through class list dict
-                currow = 5
-                for stu in class_dict:
-                    for item in markfile_col:
-                        websams_ws.cell(column=markfile_col[item], row=currow).value = stu[item]
-                    websams_ws.cell(column=45, row=currow).value = "O"
-                    currow += 1
+                    # check folder -> teacher or subject
+                    # set the file save folder and filename
+                    # override exam_type for s6 mock
+                    if exam_class.classlevel.lower() == 's6' and exam_type == 'mock':
+                        exam_type = 'mock'
 
-                # loop all sheets in workbook
-                # to lock cells
-                for sheet in markfile_wb.sheetnames:
-                    if sheet in ['ut1', 'daily1', 'exam1', 'ut2', 'daily2', 'exam2']:
-                        # set unlocked cells first
-                        if exam_class.subject.lower() in ['chi', 'eng']:
-                            col_start = lock_range[exam_class.subject.lower()][sheet][0]
-                            repeat = lock_range[exam_class.subject.lower()][sheet][1]
-                        else:
-                            col_start = lock_range['oth'][sheet][0]
-                            repeat = lock_range['oth'][sheet][1]
-                        # loop the lock_range range
-                        # print(sheet, colStart, repeat)
-                        for r2 in range(5, 49):
-                            for c2 in range(col_start, col_start + repeat):
-                                markfile_wb[sheet].cell(column=c2, row=r2).protection = Protection(locked=False,
-                                                                                                   hidden=False)
-                    markfile_wb[sheet].protection.password = 'css'
-                    markfile_wb[sheet].protection.sheet = True
-                    markfile_wb[sheet].protection.enable()
+                    mark_filename = self.markfile_name(class_type, exam_type, class_level, group_code, subject, teacher)
+                    file_save_folder = os.path.join(subject_folder, exam_class.subject)
+                    os.makedirs(file_save_folder, exist_ok=True)
+                    file_save = os.path.join(file_save_folder, mark_filename)
 
-                # build teacher and subject folder first
-                # for check and create if necessary
-                teacher_folder = os.path.join(markfile_src_folder, 'teacher')
-                subject_folder = os.path.join(markfile_src_folder, 'subject')
-                for folder in [teacher_folder, subject_folder]:
-                    if not os.path.isdir(folder):
-                        try:
-                            print('mkdir', folder)
-                            os.mkdir(folder)
-                        except OSError:
-                            print('Error: The path is not ready.')
+                    # from https://groups.google.com/forum/#!topic/openpyxl-users/Y9_iSeTi3bM
+                    #
+                    #    FWIW this is what I used to work around something similar in a file with
+                    #    chart sheets and invisible worksheets with data:
+                    #
+                    #    wb.views[0].firstSheet = 1
+                    #
+                    #    I'd love to be able to explain this but I can't as the specification says
+                    #    nothing about grouping worksheets. :-/ If anyone can come up with
+                    #    something suitable I'd love to add it to the documentation!
+                    #
+                    # it just does not work.
+                    # k = markfile_wb.views[0].activeTab
+                    # markfile_wb.views[0].firstSheet = k
+                    # print(markfile_wb.views[0].firstSheet, markfile_wb.views[0].activeTab)
+                    num_of_markfiles += 1
+                    print('\t#{} created: {}'.format(str(num_of_markfiles), file_save))
+                    markfile_wb.save(filename=file_save)
 
-                # check folder -> teacher or subject
-                # set the file save folder and filename
-                # override exam_type for s6 mock
-
-                if exam_class.classlevel.lower() == 's6' and exam_type == 'mock':
-                    exam_type = 'mock'
-
-                # if exam_class.path == "tch":
-                #     file_save_folder = os.path.join(teacher_folder, exam_class.tch)
-                #    file_save = os.path.join(file_save_folder, self.exam_year + exam_type + key + '.xlsx')
-                # elif exam_class.path == "subject":
-                    # should be useless
-                #    file_save_folder = subject_folder
-                #    file_save = os.path.join(subject_folder, exam_class.subject, self.exam_year + exam_type + key + '.xlsx')
-                # else:
-                #    print('Error: filename is not yet defined.')
-
-                file_save_folder = os.path.join(subject_folder, exam_class.subject)
-                file_save = os.path.join(subject_folder, exam_class.subject, self.exam_year + exam_type + key + '.xlsx')
-
-                # if the file save folder exist
-                if not os.path.isdir(file_save_folder):
-                    try:
-                        print(file_save_folder)
-                        os.mkdir(file_save_folder)
-                    except OSError:
-                        print('Error: The path is not ready.')
-
-                # markfile_wb.active = 1
-                # from https://groups.google.com/forum/#!topic/openpyxl-users/Y9_iSeTi3bM
-                #
-                #    FWIW this is what I used to work around something similar in a file with
-                #    chart sheets and invisible worksheets with data:
-                #
-                #    wb.views[0].firstSheet = 1
-                #
-                #    I'd love to be able to explain this but I can't as the specification says
-                #    nothing about grouping worksheets. :-/ If anyone can come up with
-                #    something suitable I'd love to add it to the documentation!
-                #
-                # it just does not work.
-                # k = markfile_wb.views[0].activeTab
-                # markfile_wb.views[0].firstSheet = k
-                # print(markfile_wb.views[0].firstSheet, markfile_wb.views[0].activeTab)
-                num_of_markfiles += 1
-                print('\t#{} created: {}'.format(str(num_of_markfiles), file_save))
-                markfile_wb.save(filename=file_save)
         print('total no of markfiles: {}'.format(num_of_markfiles))
 
     def unlock_all(self):
         # from exam_type (= exam_folder)
-        #merge_folder = self.
+        # merge_folder = self.
         print('current exam:', self.merge_folder)
         print('never stop when writing excel files.')
         print('otherwise files will be corrupted.')
@@ -500,14 +509,14 @@ class ExamRun:
                               'ut2': [11, 1], 'daily2': [0, 0], 'exam2': [10, 2]},
                       }
 
-        markfile_src_folder = os.path.join(self.home_folder, self.full_exam, 'markfile_src', next_exam)
+        markfile_src_folder = os.path.join(self.assessment_root_folder, 'markfile_src', next_exam)
 
         # from exam_type (= exam_folder)
         # also load drop from master run
         # unlock websams and update subject for S5
 
         # set path 2021exam\ut1\(subject)
-        past_exam_folder = os.path.join(self.exam_home, past_exam, 'merge')
+        past_exam_folder = os.path.join(self.assessment_root_folder, past_exam, 'merge')
         print('past exam:', past_exam_folder)
 
         # load master exam file
@@ -621,7 +630,7 @@ class ExamRun:
                               'ut2': [11, 1], 'daily2': [0, 0], 'exam2': [10, 2], },
                       }
 
-        markfile_save_folder = os.path.join(self.exam_home, 'markfile_src', next_exam, 'rename')
+        markfile_save_folder = os.path.join(self.assessment_root_folder, 'markfile_src', next_exam, 'rename')
 
         # from exam_type (= exam_folder)
         # also load drop from master run

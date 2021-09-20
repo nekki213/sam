@@ -5,7 +5,7 @@ from datetime import datetime
 import pandas as pd
 import xlrd
 import xlutils.copy
-from copy import copy
+import copy 
 import openpyxl
 import openpyxl.styles
 from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
@@ -41,11 +41,21 @@ class ClassList:
         self.previous_sch_year = str(int(sch_year[0:2])-1) + str(int(sch_year[2:4])-1)
         self.sch_year = sch_year
         self.full_name = sch_year + 'class'
-        self.home_folder = os.path.abspath(os.getcwd())
-        self.template_folder = os.path.join(self.home_folder, 'template')
+
+        # websams root folder as the ultima root folder
+        # home folder : 'websams\2122\'
+        # to hold all folders (in the same school year) within home folder
+
+        self.websams_root_folder = os.path.abspath(os.getcwd())
+        self.home_folder = os.path.join(self.websams_root_folder, self.sch_year)
+
+        os.makedirs(self.home_folder, exist_ok=True)
+        print(f'all files must be put insider { self.home_folder }.')
+
+        self.template_folder = os.path.join(self.home_folder, '_template')
         self.classlist_home = os.path.join(self.home_folder, self.full_name)
         self.export_folder = os.path.join(self.classlist_home, 'export')
-        self.export_src_folder = os.path.join(self.classlist_home, 'export', 'source')
+        self.export_src_folder = os.path.join(self.classlist_home, '_source')
         self.classlist_file = os.path.join(self.home_folder, self.sch_year + '-classlist.xlsx')
         self.classlist_template_folder = os.path.join(self.home_folder, 'template', 'classlist')
 
@@ -93,15 +103,25 @@ class ClassList:
                                       's456': ['regno', 'enname', 'chname', 'sex',
                                                'house', 'classlevel', 'classcode', 'classno', 'old classlevel',
                                                'old classcode', 'old classno', 'statue',
-                                               'x1', 'x2', 'x3', 'm'],
-                                      }
+                                               'x1', 'x2', 'x3', 'm']}
+
         self.x_subject = ['m1', 'm2', 'chs', 'hst', 'geo', 'eco', 'phy', 'chm', 'bio', 'ict', 'baf']
         self.x = ['x1', 'x2', 'x3', 'm']
 
-    def load_stuinfo(self):
+        print(f'root folder: { self.websams_root_folder }')
+        print(f'home folder: { self.home_folder }')
 
-        print('load stuinfo sheet.')
-        self.stuinfo_df = pd.read_excel(self.classlist_file, sheet_name='stuinfo')
+    def load_stuinfo(self):
+        # should extend this part with
+        #   1.  able to refine classno as integer
+        #   2.  able to refine classno as string
+
+        print(f'load stuinfo sheet from { self.classlist_file}.')
+        temp_df = pd.read_excel(self.classlist_file, sheet_name='stuinfo')
+        self.stuinfo_df = (temp_df[temp_df.classlevel.isin(['S1', 'S2', 'S3', 'S4', 'S5', 'S6'])]
+                           .applymap(lambda x: re.sub(ILLEGAL_CHARACTERS_RE, '', x) if isinstance(x, str) else x)
+                           .sort_values(by=['classlevel', 'classcode', 'classno'], ascending=[True, True, True])
+                           )
         return len(self.stuinfo_df)
 
     def make_dic_print_class_list(self):
@@ -111,6 +131,9 @@ class ClassList:
         template_header_dict = dict(zip(template_header, range(1, len(template_header)+1)))
 
         print('make dic print class list')
+        save_folder = os.path.join(self.classlist_home, 'print')
+        os.makedirs(save_folder, exist_ok=True)
+
         for forms in ['s123', 's456']:
             for classlevel in self.classlevel[forms]:
                 for classcode in self.classcode_dict[classlevel]:
@@ -121,7 +144,7 @@ class ClassList:
 
                     class_dict = (self.stuinfo_df[(self.stuinfo_df.classcode.isin([classcode.upper()]))]
                                   [template_header]
-                                  .applymap(lambda x: re.sub(ILLEGAL_CHARACTERS_RE, '', x) if isinstance(x, str) else x)
+                                  # .applymap(lambda x: re.sub(ILLEGAL_CHARACTERS_RE, '', x) if isinstance(x, str) else x)
                                   .sort_values(by=['classlevel', 'classcode', 'classno'], ascending=[True, True, True])
                                   .to_dict(orient='records')
                                   )
@@ -157,11 +180,14 @@ class ClassList:
 
         classlist_df = (
             self.stuinfo_df[template_header]
-                .applymap(lambda x: re.sub(ILLEGAL_CHARACTERS_RE, '', x) if isinstance(x, str) else x)
+                # .applymap(lambda x: re.sub(ILLEGAL_CHARACTERS_RE, '', x) if isinstance(x, str) else x)
                 .sort_values(by=['classlevel', 'classcode', 'classno'], ascending=[True, True, True])
             )
 
-        classlist_file = os.path.join(self.classlist_home, 'class', self.full_name + '-s123456-all.xlsx')
+        save_folder = os.path.join(self.classlist_home, 'class')
+        os.makedirs(save_folder, exist_ok=True)
+
+        classlist_file = os.path.join(save_folder, self.full_name + '-s123456-all.xlsx')
         classlist_wb = openpyxl.load_workbook(template_file)
         classlist_wb.create_sheet(title='all')
 
@@ -185,7 +211,7 @@ class ClassList:
 
                 form_df = (
                     self.stuinfo_df[(self.stuinfo_df.classlevel.isin([classlevel.upper()]))][template_header]
-                    .applymap(lambda x: re.sub(ILLEGAL_CHARACTERS_RE, '', x) if isinstance(x, str) else x)
+                    # .applymap(lambda x: re.sub(ILLEGAL_CHARACTERS_RE, '', x) if isinstance(x, str) else x)
                     .sort_values(by=['classlevel', 'classcode', 'classno'], ascending=[True, True, True])
                 )
 
@@ -224,7 +250,7 @@ class ClassList:
 
                     class_df = (
                         self.stuinfo_df[(self.stuinfo_df.classcode.isin([classcode.upper()]))][template_header]
-                        .applymap(lambda x: re.sub(ILLEGAL_CHARACTERS_RE, '', x) if isinstance(x, str) else x)
+                        # .applymap(lambda x: re.sub(ILLEGAL_CHARACTERS_RE, '', x) if isinstance(x, str) else x)
                         .sort_values(by=['classlevel', 'classcode', 'classno'], ascending=[True, True, True])
                         )
 
@@ -257,20 +283,19 @@ class ClassList:
                            }
 
         print('make subject class lists')
+        save_folder = os.path.join(self.classlist_home, 'subject')
+        os.makedirs(save_folder, exist_ok=True)
 
         for forms in ['s123', 's456']:
 
-            form_file = os.path.join(self.classlist_home,
-                                     'subject',
-                                     self.full_name + '-' + forms + '-subject-(' + date_string + ').xlsx')
-
+            form_file = os.path.join(save_folder, self.full_name + '-' + forms + '-subject-(' + date_string + ').xlsx')
             form_wb = openpyxl.load_workbook(template_file)
 
             for classlevel in self.classlevel[forms]:
 
                 form_df = (
                     self.stuinfo_df[(self.stuinfo_df.classlevel.isin([classlevel.upper()]))][template_header[forms]]
-                    .applymap(lambda x: re.sub(ILLEGAL_CHARACTERS_RE, '', x) if isinstance(x, str) else x)
+                    # .applymap(lambda x: re.sub(ILLEGAL_CHARACTERS_RE, '', x) if isinstance(x, str) else x)
                     .sort_values(by=['classlevel', 'classcode', 'classno'], ascending=[True, True, True])
                     )
 
@@ -282,8 +307,7 @@ class ClassList:
 
                 if forms == 's456':
 
-                    subject_file = os.path.join(self.classlist_home,
-                                                'subject',
+                    subject_file = os.path.join(save_folder,
                                                 self.full_name + '-' + classlevel
                                                 + '-subject-(' + date_string + ').xlsx')
                     subject_wb = openpyxl.load_workbook(template_file)
@@ -326,18 +350,18 @@ class ClassList:
                     # ws_new = wb_new.active
                     ws_new = form_wb.create_sheet(title='stat')
                     # copy worksheet attributes
-                    ws_new.sheet_format = copy(ws_src.sheet_format)
-                    ws_new.sheet_format = copy(ws_src.sheet_format)
-                    ws_new.sheet_properties = copy(ws_src.sheet_properties)
-                    ws_new.merged_cells = copy(ws_src.merged_cells)
-                    ws_new.page_margins = copy(ws_src.page_margins)
-                    ws_new.page_setup = copy(ws_src.page_setup)
-                    ws_new.print_options = copy(ws_src.print_options)
-                    ws_new.row_dimensions = copy(ws_src.row_dimensions)
-                    ws_new.column_dimensions = copy(ws_src.column_dimensions)
-                    ws_new._print_area = copy(ws_src._print_area)
+                    ws_new.sheet_format = copy.copy(ws_src.sheet_format)
+                    ws_new.sheet_format = copy.copy(ws_src.sheet_format)
+                    ws_new.sheet_properties = copy.copy(ws_src.sheet_properties)
+                    ws_new.merged_cells = copy.copy(ws_src.merged_cells)
+                    ws_new.page_margins = copy.copy(ws_src.page_margins)
+                    ws_new.page_setup = copy.copy(ws_src.page_setup)
+                    ws_new.print_options = copy.copy(ws_src.print_options)
+                    ws_new.row_dimensions = copy.copy(ws_src.row_dimensions)
+                    ws_new.column_dimensions = copy.copy(ws_src.column_dimensions)
+                    ws_new._print_area = copy.copy(ws_src._print_area)
 
-                    # copy cell by cell
+                    # copy.copy cell by cell
                     for row in ws_src.rows:
 
                         for cell in row:
@@ -346,32 +370,37 @@ class ClassList:
 
                             if cell.has_style:
 
-                                new_cell.font = copy(cell.font)
-                                new_cell.border = copy(cell.border)
-                                new_cell.fill = copy(cell.fill)
-                                new_cell.number_format = copy(cell.number_format)
-                                new_cell.protection = copy(cell.protection)
-                                new_cell.alignment = copy(cell.alignment)
+                                new_cell.font = copy.copy(cell.font)
+                                new_cell.border = copy.copy(cell.border)
+                                new_cell.fill = copy.copy(cell.fill)
+                                new_cell.number_format = copy.copy(cell.number_format)
+                                new_cell.protection = copy.copy(cell.protection)
+                                new_cell.alignment = copy.copy(cell.alignment)
 
             form_wb.save(form_file)
             form_wb.close()
             print('\t{}: {}'.format('all subject', form_file))
 
-    def export_edcity(self):
+    def export_edcity(self, filename: str):
+
+        # to update edcity student accounts
+        # need to download the existing accounts from edcity first
+        # also put it under '/export/edcity/'
 
         import_header = ['學生註冊編號', '英文姓名', '中文姓名', '顯示姓名 (由系統建立)', '性別', '級別', '班別', '班號',
                          '學校電郵', '國家地區代碼', '流動電話', '登入帳號', '預設密碼']
 
-        import_file = os.path.join(self.classlist_home, 'export', 'edcity', 'studentlist_20200902091212_5.xlsx')
+        import_file = os.path.join(self.classlist_home, 'export', 'edcity', filename)
         import_df = pd.read_excel(import_file, '學生名單')[['學生註冊編號', '顯示姓名 (由系統建立)']]
         import_df.rename(columns={'學生註冊編號': 'regno'}, inplace=True)
 
         filter_column = ['regno', 'enname', 'chname', 'sex', 'classlevel', 'classcode', 'classno', 'pw']
         edcity_df = (
             self.stuinfo_df[filter_column]
-                .applymap(lambda x: re.sub(ILLEGAL_CHARACTERS_RE, '', x) if isinstance(x, str) else x)
+                # .applymap(lambda x: re.sub(ILLEGAL_CHARACTERS_RE, '', x) if isinstance(x, str) else x)
                 .sort_values(by=['classlevel', 'classcode', 'classno'], ascending=[True, True, True])
             )
+
 
         edcity_df = pd.merge(edcity_df, import_df, how='left', on='regno')
         edcity_df['classcode'] = edcity_df['classcode'].apply(lambda x: x[1:].upper())
@@ -384,20 +413,22 @@ class ClassList:
         # edcity_df['regno'] = edcity_df['regno']
 
         # for various exporting
-        edcity_header_c = ['學生註冊編號', '英文姓名', '中文姓名', '性別', '級別', '班別',
-                           '班號', '登入帳號', '預設密碼']
-        edcity_header_e = ['regno', 'enname', 'chname', 'sex', 'classlevel', 'classcode',
-                           'classno', 'account', 'pw']
+        edcity_header_c = ['學生註冊編號', '英文姓名', '中文姓名', '性別', '級別', '班別', '班號', '登入帳號', '預設密碼']
+        edcity_header_e = ['regno', 'enname', 'chname', 'sex', 'classlevel', 'classcode', 'classno', 'account', 'pw']
         edcity_dict = dict(zip(edcity_header_e, edcity_header_c))
         # edcity:   #CDG140126   CHENG HOI YAN   鄭鎧忻   S1   1A   1   cdg-140126   296478
 
         export_header = ['學生註冊編號', '英文姓名', '中文姓名',  '顯示姓名 (由系統建立)', '性別', '級別', '班別',
                          '班號', '學校電郵', '國家地區代碼', '流動電話', '登入帳號', '預設密碼']
-        save_file = os.path.join(self.classlist_home, 'export', 'edcity', self.full_name + '-edcity.xlsx')
+
+        save_folder = os.path.join(self.classlist_home, 'export', 'edcity')
+        os.makedirs(save_folder, exist_ok=True)
+        save_file = os.path.join(save_folder, self.full_name + '-edcity.xlsx')
         (edcity_df.rename(columns=edcity_dict)
                   .reindex(columns=export_header)
                   .to_excel(save_file, index=False)
          )
+        print(f'\tedcity file: { save_file }')
         return 0
 
     def export_tsa(self):
@@ -416,7 +447,7 @@ class ClassList:
         tsa_column = ['schyear', 'classlevel', 'classcode', 'classno', 'enname', 'chname', 'sex', 'dob2', 'strn']
 
         tsa_df = (self.stuinfo_df[self.stuinfo_df.classlevel.isin(['S3'])][filter_column]
-                      .applymap(lambda x: re.sub(ILLEGAL_CHARACTERS_RE, '', x) if isinstance(x, str) else x)
+                      # .applymap(lambda x: re.sub(ILLEGAL_CHARACTERS_RE, '', x) if isinstance(x, str) else x)
                       .sort_values(by=['classlevel', 'classcode', 'classno'], ascending=[True, True, True])
                   )
 
@@ -429,13 +460,58 @@ class ClassList:
 
         tsa_df['dob2'] = tsa_df['day'] + '/' + tsa_df['month'] + '/' + tsa_df['year']
 
-        save_file_csv = os.path.join(self.classlist_home, 'export', 'tsa', self.full_name + '-s3-tsa.csv')
-        save_file_xls = os.path.join(self.classlist_home, 'export', 'tsa', self.full_name + '-s3-tsa.xls')
+        save_folder = os.path.join(self.classlist_home, 'export', 'tsa')
+        os.makedirs(save_folder, exist_ok=True)
+
+        save_file_csv = os.path.join(save_folder, self.full_name + '-s3-tsa.csv')
+        save_file_xls = os.path.join(save_folder, self.full_name + '-s3-tsa.xls')
 
         tsa_df[tsa_column].to_csv(save_file_csv, sep='\t', header=False, index=False, encoding='utf-8')
         tsa_df[tsa_column].to_excel(save_file_xls, index=False)
         print('\ttsa file: {} / {}'.format(save_file_csv, save_file_xls))
 
+        return 0
+
+    def export_stu_view_analysis(self):
+
+        sheet_header_dict = {'stu_view': ['regno', 'wm', '守時', '儀容', '呈交功課表現', '禮貌', '責任感'],
+                             's123final': ['regno', 'chi', 'eng', 'mth', 'chs', 'hst',
+                                           'geo', 'eco', 'isc', 'phy', 'chm', 'bio', 'bik', 'lsk', 'pth',
+                                           'cps', 'via', 'mus', 'ped', 'stm', 'dte', 'hec'],
+                             's456final': ['regno', 'chi', 'eng', 'mth', 'm1', 'm2',
+                                           'lst', 'chs', 'hst', 'geo', 'eco', 'phy', 'chm', 'bio',
+                                           'baf', 'ict', 'bik', 'mus', 'ped']
+                             }
+
+        filter_column = ['regno', 'enname', 'chname', 'sex', 'house',
+                         'classlevel', 'classcode', 'classno',
+                         'old classlevel', 'old classcode', 'old classno']
+
+        result_column = ['regno', 'eng', 'mth']
+        classlevel_list = ['S1', 'S2', 'S3', 'S4', 'S5', 'S6']
+
+        student_df = (self.stuinfo_df[self.stuinfo_df.classlevel.isin(classlevel_list)][filter_column]
+                      # .applymap(lambda x: re.sub(ILLEGAL_CHARACTERS_RE, '', x) if isinstance(x, str) else x)
+                      .sort_values(by=['classlevel', 'classcode', 'classno'], ascending=[True, True, True])
+                      )
+        result_df1 = pd.read_excel(self.classlist_file, sheet_name='s123final')[sheet_header_dict['s123final']]
+        conduct_df = pd.read_excel(self.classlist_file, sheet_name='stu_view')[sheet_header_dict['stu_view']]
+        stu_result_df = pd.merge(student_df, result_df1, how='left', on='regno')
+        result_df2 = pd.read_excel(self.classlist_file, sheet_name='s45final')[sheet_header_dict['s456final']]
+        stu_result_df = pd.merge(stu_result_df, result_df2, how='left', on='regno')
+        stu_result_df = pd.merge(stu_result_df, conduct_df)
+        #  print(stu_result_df.head(5))
+
+        for classlevel in classlevel_list:
+            save_folder = os.path.join(self.classlist_home, 'export', 'pre_year')
+            os.makedirs(save_folder, exist_ok=True)
+            for classcode_letter in ['A', 'B', 'C', 'D']:
+                classcode = classlevel + classcode_letter
+                save_file = os.path.join(save_folder,
+                                         self.full_name + '-' + classcode.lower() + '-' + 'pre_year' + '.xlsx')
+                (stu_result_df[stu_result_df['classcode'] == classcode]
+                 .to_excel(save_file, index=False)
+                 )
         return 0
 
     def export_s23_final(self):
@@ -446,7 +522,7 @@ class ClassList:
         result_column = ['regno', 'eng', 'mth']
 
         student_df = (self.stuinfo_df[self.stuinfo_df.classlevel.isin(['S2', 'S3'])][filter_column]
-                      .applymap(lambda x: re.sub(ILLEGAL_CHARACTERS_RE, '', x) if isinstance(x, str) else x)
+                      # .applymap(lambda x: re.sub(ILLEGAL_CHARACTERS_RE, '', x) if isinstance(x, str) else x)
                       .sort_values(by=['classlevel', 'classcode', 'classno'], ascending=[True, True, True])
                       )
         result_df = pd.read_excel(self.classlist_file, sheet_name='s123final')[result_column]
@@ -455,9 +531,10 @@ class ClassList:
         #  print(stu_result_df.head(5))
 
         for subject in ['eng', 'mth']:
+            save_folder = os.path.join(self.classlist_home, 'export', subject)
+            os.makedirs(save_folder, exist_ok=True)
             for classlevel in ['S2', 'S3']:
-                save_file = os.path.join(self.classlist_home, 'export',
-                                         subject,
+                save_file = os.path.join(save_folder,
                                          self.full_name + '-' + classlevel.lower() + '-' + subject + '.xlsx')
                 (stu_result_df[stu_result_df['classlevel'] == classlevel][filter_column + [subject]]
                  .to_excel(save_file, index=False)
@@ -476,7 +553,7 @@ class ClassList:
                          'dob2', 'house', 'division', 'sex', 'hkid', 'noid']
 
         sports_df = (self.stuinfo_df[filter_column]
-                     .applymap(lambda x: re.sub(ILLEGAL_CHARACTERS_RE, '', x) if isinstance(x, str) else x)
+                     # .applymap(lambda x: re.sub(ILLEGAL_CHARACTERS_RE, '', x) if isinstance(x, str) else x)
                      .sort_values(by=['classlevel', 'classcode', 'classno'], ascending=[True, True, True])
                      )
 
@@ -487,14 +564,16 @@ class ClassList:
         sports_df['division'] = 'D'
         sports_df['noid'] = 'NO-ID'
 
-        save_file_csv = os.path.join(self.classlist_home, 'export', 'sports', self.full_name + '-sports.csv')
+        save_folder = os.path.join(self.classlist_home, 'export', 'sports')
+        os.makedirs(save_folder, exist_ok=True)
+        save_file_csv = os.path.join(save_folder, self.full_name + '-sports.csv')
         sports_df[sports_column].to_csv(save_file_csv, header=False, index=False, encoding='utf_8_sig')
 
         print('\tsports file: {}'.format(save_file_csv))
         print('\tNeed to re-save in non utf-8 encoding by excel/notepad.')
         return 0
 
-    def export_eca_db(self):
+    def export_eca_db(self, teacher_dict_list: list):
         # 1. build new student records
         # 2. build new student accounts
         # 3. promote old student classes
@@ -508,7 +587,7 @@ class ClassList:
 
         student_df = (
             self.stuinfo_df[filter_header]
-                .applymap(lambda x: re.sub(ILLEGAL_CHARACTERS_RE, '', x) if isinstance(x, str) else x)
+                # .applymap(lambda x: re.sub(ILLEGAL_CHARACTERS_RE, '', x) if isinstance(x, str) else x)
                 .sort_values(by=['classlevel', 'classcode', 'classno'], ascending=[True, True, True])
             )
 
@@ -520,19 +599,21 @@ class ClassList:
         password = '52c69e3a57331081823331c4e69d3f2e'
         new_student_dict = new_student_df.to_dict(orient='records')
 
-        eac_sql1 = os.path.join(self.classlist_home, 'export', 'eac', self.full_name + '_eac_new_users_sql.txt')
-        eac_sql2 = os.path.join(self.classlist_home, 'export', 'eac', self.full_name + '_eac_new_students_sql.txt')
-        eac_sql3 = os.path.join(self.classlist_home, 'export', 'eac', self.full_name + '_eac_update_studentclass_sql.txt')
-        eac_sql4 = os.path.join(self.classlist_home, 'export', 'eac', self.full_name + '_eac_new_teacher_sql.txt')
-        eac_sql5 = os.path.join(self.classlist_home, 'export', 'eac', self.full_name + '_eac_new_teacher_user_sql.txt')
-        eac_pw_csv = os.path.join(self.classlist_home, 'export', 'eac', self.full_name + '_eac_pw.csv')
+        save_folder = os.path.join(self.classlist_home, 'export', 'eac')
+        os.makedirs(save_folder, exist_ok=True)
+
+        eac_sql1 = os.path.join(save_folder, self.full_name + '_eac_new_users_sql.txt')
+        eac_sql2 = os.path.join(save_folder, self.full_name + '_eac_new_students_sql.txt')
+        eac_sql3 = os.path.join(save_folder, self.full_name + '_eac_update_studentclass_sql.txt')
+        eac_sql4 = os.path.join(save_folder, self.full_name + '_eac_new_teacher_sql.txt')
+        eac_sql5 = os.path.join(save_folder, self.full_name + '_eac_new_teacher_user_sql.txt')
+        eac_pw_csv = os.path.join(save_folder, self.full_name + '_eac_pw.csv')
 
         sql_out1 = open(eac_sql1, 'w', encoding='utf-8')
         sql_out2 = open(eac_sql2, 'w', encoding='utf-8')
         sql_out3 = open(eac_sql3, 'w', encoding='utf-8')
         sql_out4 = open(eac_sql4, 'w', encoding='utf-8')
         sql_out5 = open(eac_sql5, 'w', encoding='utf-8')
-
 
         for student in new_student_dict:
             if student['regno'] is None:
@@ -571,14 +652,8 @@ class ClassList:
         print('\tnew class sql: {}'.format(eac_sql3))
         sql_out3.close()
         x = 'x'
-        teacher_dict = [{'tch_code': '20lj', 'teacherid': 'LJ', 'cname': x, 'ename': 'Leung Ka Shing', 'gender': 'M'},
-                        {'tch_code': '20lb', 'teacherid': 'LB', 'cname': x, 'ename': 'Leung Ming Kan', 'gender': 'M'},
-                        {'tch_code': '20hl', 'teacherid': 'HL', 'cname': x, 'ename': 'Lim Wing Hin Henry', 'gender': 'M'},
-                        {'tch_code': '20km', 'teacherid': 'KM', 'cname': x, 'ename': 'Mak Hoi Ying', 'gender': 'M'},
-                        {'tch_code': '20as', 'teacherid': 'AS', 'cname': x, 'ename': 'So Chun Kit Ambrose', 'gender': 'M'},
-                        ]
 
-        for teacher in teacher_dict:
+        for teacher in teacher_dict_list:
             sql_txt4 = ('insert into tbl_teachers(teacherid, cname, ename, gender) '
                         'values (\'{}\', \'{}\', \'{}\', \'{}\');\n'
                         .format(teacher['teacherid'], teacher['cname'], teacher['ename'], teacher['gender']))
@@ -588,8 +663,7 @@ class ClassList:
         print('\tnew teacher sql: {}'.format(eac_sql4))
         sql_out4.close()
 
-
-        for teacher in teacher_dict:
+        for teacher in teacher_dict_list:
             email_txt = 't' + teacher['tch_code'] + '@school.cdgfss.edu.hk'
             sql_txt5 = ('insert into tbl_users(userid, password, email, type) '
                         'values (\'{}\', \'{}\', \'{}\', \'{}\');\n'
@@ -618,14 +692,14 @@ class ClassList:
         # should use regno for 'Student Number' instead of the class no.
 
         jupas_df = (self.stuinfo_df[self.stuinfo_df['classlevel'] == 'S6'][filter_column]
-                    .applymap(lambda x: re.sub(ILLEGAL_CHARACTERS_RE, '', x) if isinstance(x, str) else x)
+                    # .applymap(lambda x: re.sub(ILLEGAL_CHARACTERS_RE, '', x) if isinstance(x, str) else x)
                     .sort_values(by=['classlevel', 'classcode', 'classno'], ascending=[True, True, True])
                     )
 
         eapp_df = (self.stuinfo_df[self.stuinfo_df['classlevel'] == 'S6'][filter_column]
-                    .applymap(lambda x: re.sub(ILLEGAL_CHARACTERS_RE, '', x) if isinstance(x, str) else x)
-                    .sort_values(by=['classlevel', 'classcode', 'classno'], ascending=[True, True, True])
-                    )
+                   # .applymap(lambda x: re.sub(ILLEGAL_CHARACTERS_RE, '', x) if isinstance(x, str) else x)
+                   .sort_values(by=['classlevel', 'classcode', 'classno'], ascending=[True, True, True])
+                   )
 
         jupas_df['HKID Card No.'] = jupas_df['hkid'].str[0:7] + '(' + jupas_df['hkid'].str[7] + ')'
         jupas_df['School Code'] = str(20212)
@@ -652,11 +726,14 @@ class ClassList:
                        'Group',	'Passport No.', 'Passport Issuing Country']
 
         # print(jupas_df.head(5))
-        jupas_file_save = os.path.join(self.classlist_home, 'export', 'jupas', self.full_name + '-jupas-import.xlsx')
+        save_folder = os.path.join(self.classlist_home, 'export', 'jupas')
+        os.makedirs(save_folder, exist_ok=True)
+
+        jupas_file_save = os.path.join(save_folder, self.full_name + '-jupas-import.xlsx')
         jupas_df[jupas_column].to_excel(jupas_file_save, sheet_name='Record', index=False)
         print('\tjupas file: {}'.format(jupas_file_save))
 
-        eapp_file_save = os.path.join(self.classlist_home, 'export', 'jupas', self.full_name + '-eapp-import.xls')
+        eapp_file_save = os.path.join(save_folder, self.full_name + '-eapp-import.xls')
         eapp_df[eapp_column].to_excel(eapp_file_save, sheet_name='Record', index=False, header=False)
         print('\teapp file: {}'.format(eapp_file_save))
 
@@ -669,9 +746,9 @@ class ClassList:
         jupas_srr_column = ['jupas', 'regno', 'classlevel', 'classcode', 'classno', 'enname', 'chname', 'sex']
 
         jupas_srr_df = (self.stuinfo_df[self.stuinfo_df['classlevel'] == 'S6'][filter_column]
-                    .applymap(lambda x: re.sub(ILLEGAL_CHARACTERS_RE, '', x) if isinstance(x, str) else x)
-                    .sort_values(by=['classlevel', 'classcode', 'classno'], ascending=[True, True, True])
-                    )
+                        # .applymap(lambda x: re.sub(ILLEGAL_CHARACTERS_RE, '', x) if isinstance(x, str) else x)
+                        .sort_values(by=['classlevel', 'classcode', 'classno'], ascending=[True, True, True])
+                        )
 
         # print(jupas_srr_df.head(5))
         jupas_file_save = os.path.join(self.classlist_home, 'export', 'jupas', self.full_name + '-jupas-import.xlsx')
@@ -681,18 +758,20 @@ class ClassList:
         return 0
 
     def filter_analysis_eca(self):
-        eac_header_s123 = ['key', 'regno', 'enname', 'chname', 'sex', 'classlvl', 'classcode', 'classno',
+        eac_header_s123 = ['key', 'regno', 'enname', 'chname', 'sex', 'classlevel', 'classcode', 'classno',
                            'chi', 'eng', 'mth', 'chs', 'hst', 'geo', 'eco', 'isc', 'phy', 'chm', 'bio',
                            'bik', 'lst', 'pth', 'cps', 'via', 'mus', 'ped', 'dte', 'hec',
                            'wm', 'Class Rank', 'Form Rank']
 
-        eac_header_s456 = ['key', 'regno', 'enname', 'chname', 'sex', 'classlvl', 'classcode', 'classno',
+        eac_header_s456 = ['key', 'regno', 'enname', 'chname', 'sex', 'classlevel', 'classcode', 'classno',
                            'chi', 'eng', 'mth', 'm1', 'm2', 'lst',
                            'x1_', 'x1_m', 'x1_k', 'x2_', 'x2_m', 'x2_k', 'x3_', 'x3_m', 'x3_k', 'm_m', 'm_k',
                            'wm', 'DSE   WM', 'X-subj Mean']
 
         print('\ngenerate student filter list for eca')
         analysis_folder_previous_year = os.path.join(self.home_folder, self.previous_sch_year + 'exam', 'analysis')
+
+        # analysis should have combined with 'master classlist file'
         analysis_file_dict = {'s123': os.path.join(analysis_folder_previous_year,
                                                    self.previous_sch_year + '-final-s123-analysis_Final.xlsm'),
                               's456': os.path.join(analysis_folder_previous_year,
@@ -707,6 +786,7 @@ class ClassList:
             #       and all dse electives subject.
             s123_rank = 30
             s4_pass_mark = 60
+            s4_dse_wm = 60
             s5_dse_wm = 50
 
             save_wb = openpyxl.load_workbook(self.template_file)
@@ -715,42 +795,62 @@ class ClassList:
             wb_writer.book = save_wb
 
             analysis_s123_df = pd.read_excel(analysis_file_dict['s123'], sheet_name='work')[
-                ['regno', 'enname', 'chname', 'sex', 'classlvl', 'classcode', 'classno', 'wm', 'Form Rank']]
+                ['regno', 'enname', 'chname', 'sex', 'classlevel', 'classcode', 'classno', 'wm', 'Form Rank']]
 
             (analysis_s123_df[analysis_s123_df['Form Rank'] <= s123_rank]
                 .to_excel(wb_writer, 's123', index=False))
 
             analysis_s456_df = pd.read_excel(analysis_file_dict['s456'], sheet_name='work')[
-                ['key', 'regno', 'enname', 'chname', 'sex', 'classlvl', 'classcode', 'classno',
-                 'chi', 'eng', 'mth', 'lst',
-                 'x1_', 'x1_m', 'x1_k', 'x2_', 'x2_m', 'x2_k', 'x3_', 'x3_m', 'x3_k',
-                 'm_m', 'm_k', 'wm', 'DSE   WM', 'X-subj Mean']]
+                ['key', 'regno', 'enname', 'chname', 'sex', 'classlevel', 'classcode', 'classno',
+                 'chi', 'eng', 'mth', 'm1', 'm2', 'lst', 'chs', 'hst', 'geo', 'eco', 'baf', 'phy', 'chm', 'bio',
+                 'wm', 'DSE   WM', 'X-subj Mean']]
 
-            s4_df = analysis_s456_df[analysis_s456_df['classlvl'] == 'S4']
-            # s4_df.to_excel(wb_writer, 's4o', index=False)
-            x1_filter = (s4_df['x1_m'] > s4_pass_mark) | (s4_df['x1_m'].isna())
-            x2_filter = (s4_df['x2_m'] > s4_pass_mark) | (s4_df['x2_m'].isna())
-            x3_filter = (s4_df['x3_m'] > s4_pass_mark) | (s4_df['x3_m'].isna())
-            m_filter = (s4_df['m_m'] > s4_pass_mark) | (s4_df['m_m'].isna())
-            (s4_df[(
-             (s4_df['chi'] > s4_pass_mark) &
-             (s4_df['eng'] > s4_pass_mark) &
-             (s4_df['mth'] > s4_pass_mark) &
-             (s4_df['lst'] > s4_pass_mark) &
-             x1_filter & x2_filter & x3_filter & m_filter
-             )]
+            s4_df = analysis_s456_df[analysis_s456_df['classlevel'] == 'S4']
+            s4_df.to_excel(wb_writer, 's4o', index=False)
+            #x1_filter = (s4_df['x1_m'] > s4_pass_mark) | (s4_df['x1_m'].isna())
+            #x2_filter = (s4_df['x2_m'] > s4_pass_mark) | (s4_df['x2_m'].isna())
+            #x3_filter = (s4_df['x3_m'] > s4_pass_mark) | (s4_df['x3_m'].isna())
+            #m_filter = (s4_df['m_m'] > s4_pass_mark) | (s4_df['m_m'].isna())
+            #(s4_df[(
+            # (s4_df['chi'] > s4_pass_mark) &
+            # (s4_df['eng'] > s4_pass_mark) &
+            # (s4_df['mth'] > s4_pass_mark) &
+            # (s4_df['lst'] > s4_pass_mark)
+            # #x1_filter & x2_filter & x3_filter & m_filter
+            # )]
+            # .to_excel(wb_writer, 's4', index=False))
+
+            (analysis_s456_df[(analysis_s456_df['classlevel'] == 'S4') & (analysis_s456_df['DSE   WM'] >= s4_dse_wm)][
+                 ['regno', 'enname', 'chname', 'sex', 'classlevel', 'classcode', 'classno', 'DSE   WM']]
              .to_excel(wb_writer, 's4', index=False))
 
-            (analysis_s456_df[(analysis_s456_df['classlvl'] == 'S5') & (analysis_s456_df['DSE   WM'] >= s5_dse_wm)][
-                 ['regno', 'enname', 'chname', 'sex', 'classlvl', 'classcode', 'classno', 'DSE   WM']]
-             .to_excel(wb_writer, 's5', index=False)
-             )
+            (analysis_s456_df[(analysis_s456_df['classlevel'] == 'S5') & (analysis_s456_df['DSE   WM'] >= s5_dse_wm)][
+                 ['regno', 'enname', 'chname', 'sex', 'classlevel', 'classcode', 'classno', 'DSE   WM']]
+             .to_excel(wb_writer, 's5', index=False))
+
             print('\tfile saved: {}'.format(save_file))
             wb_writer.save()
             wb_writer.close()
 
         else:
             print('{} or {} is missing'.format(analysis_file_dict['s123'], analysis_file_dict['s456']))
+
+    def detention_namelist(self):
+
+        print('\ngenerate namelist for detention app')
+        filter_column = ['key', 'regno', 'chname', 'classlevel', 'classcode', 'classno']
+        print_column = filter_column + ['class_name']
+        # class_name : [{ key }]{ chname }]
+
+        detention_df = self.stuinfo_df[filter_column].sort_values(by=['key'], ascending=[True])
+        detention_df['class_name'] = detention_df['key'].apply(lambda x: '[' + x + ']') + detention_df['chname']
+
+        save_folder = os.path.join(self.classlist_home, 'export', 'detention')
+        os.makedirs(save_folder, exist_ok=True)
+
+        detention_file_save = os.path.join(save_folder, self.full_name + '-detention.xlsx')
+        detention_df[print_column].to_excel(detention_file_save, index=False)
+        print(f'\tdetention namelist file: { detention_file_save }')
 
     def import_websams(self):
 
@@ -773,13 +873,23 @@ class ClassList:
                         'classcode': 'To Class',
                         'statue': 'Promotion Status'}
 
+        # self.stuinfo_df[self.stuinfo_df.classlevel.isin(['S2', 'S3', 'S4', 'S5', 'S6'])].to_excel('test.xlsx')
+
+        websams_df = (self.stuinfo_df[self.stuinfo_df.classlevel.isin(['S1', 'S2', 'S3', 'S4', 'S5', 'S6'])]
+                      # .applymap(lambda x: re.sub(ILLEGAL_CHARACTERS_RE, '', x) if isinstance(x, str) else x)
+                      .sort_values(by=['classlevel', 'classcode', 'classno'], ascending=[True, True, True])
+                      )
+        websams_df.to_excel('test.xlsx')
         current_directory = pathlib.Path(self.export_src_folder)
         print('start produce promotion files from', self.export_src_folder)
         # read xls using xlrd
         # loop all files in websams import folder
-        self.stuinfo_df['regno2'] = '#' + self.stuinfo_df['regno']
-        self.stuinfo_df['statue'].fillna('0', inplace=True)
-        stuinfo_dict = self.stuinfo_df.set_index('regno2').to_dict(orient='index')
+        websams_df['regno2'] = '#' + self.stuinfo_df['regno']
+        websams_df['statue'].fillna('0', inplace=True)
+        stuinfo_dict = websams_df.set_index('regno2').to_dict(orient='index')
+
+        save_folder = os.path.join(self.export_folder, 'promotion')
+        os.makedirs(save_folder, exist_ok=True)
 
         for current_file in current_directory.iterdir():
             # PM_1905603320200820_000.xls
@@ -804,10 +914,18 @@ class ClassList:
                     if cur_regno in stuinfo_dict.keys():
 
                         cur_student = stuinfo_dict[cur_regno]
+
+                        if cur_student['statue'] == 'repeat':
+                            print('R: {} / {} / {} / {} / {}'.format(
+                                   cur_student['classlevel'],
+                                   cur_student['classcode'],
+                                   cur_student['chname'],
+                                   cur_student['regno'],
+                                   cur_student['statue']))
+
                         temp_wb.get_sheet(0).write(row, promotion_header_dict['To School Level'], '3')
                         temp_wb.get_sheet(0).write(row, promotion_header_dict['To School Session'], '3')
 
-                        # print(cur_student['classlevel'], cur_student['classcode'], cur_student['statue'])
                         for key, item in student_dict.items():
 
                             col = promotion_header_dict[item]
@@ -815,26 +933,38 @@ class ClassList:
 
                             if key == 'statue':
 
+                                # print('Repeat: {} / {} / {}'.format(
+                                #    row,
+                                #    promotion_header_dict['Promotion Status'],
+                                #    cur_student[key]))
+
                                 if copy_sheet.cell(row, promotion_header_dict['Promotion Status']).value == '5':
                                     pass
 
                                 elif cur_student[key] == 'repeat':
+
                                     temp_wb.get_sheet(0).write(row,
                                                                promotion_header_dict['Promotion Status'],
                                                                '1')
                                 else:
+                                    # print('{} / {} / {}'.format(
+                                    #    row,
+                                    #    promotion_header_dict['Promotion Status'],
+                                    #    cur_student[key]))
+
                                     temp_wb.get_sheet(0).write(row,
                                                                promotion_header_dict['Promotion Status'],
                                                                cur_student[key])
 
                     else:
-                        print('{} ({}) does not exist in the current classlist.'.format(
+                        print('W: {} ({}) should have withdrawn.'.format(
                             cur_regno,
                             copy_sheet.cell(row, promotion_header_dict['*Student name']).value)
                             )
 
-                save_file = os.path.join(self.export_folder, current_file.name)
-                temp_wb.save(save_file)
-                # print('\t' + current_file_item['classcode'] + ': ' + save_file)
+            save_file = os.path.join(save_folder, current_file.name)
+            temp_wb.save(save_file)
+            print(f'\t save file in { save_file }')
 
-        print('All import files: {}'.format(self.export_folder))
+        print(f'all import files: { self.export_folder }')
+

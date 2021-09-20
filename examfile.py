@@ -1,7 +1,7 @@
 import pandas as pd
 import os
 import pathlib
-from websams.model.examclass import ExamClass
+from model.examclass import ExamClass
 
 db_header = ['regno', 'enname', 'chname', 'sex',  # 0-3
              'classlevel', 'classcode', 'classno', 'subject', 'xgroup',  # 4-8
@@ -25,7 +25,6 @@ comp_col = {'ut1': [0],
             'final': ['fcomp1', 'fcomp2', 'fcomp3', 'fcomp4', 'fcomp5'],
             'mock': ['fcomp1', 'fcomp2', 'fcomp3', 'fcomp4', 'fcomp5'],
             }
-
 
 check_mark_col = {'ut1': ['ut1'],
                   'exam1': ['daily1', 'exam1', 'total1'],
@@ -97,9 +96,9 @@ class ExamFile:
         self.statistics = {}
 
         # folder setting here
-        self.home_folder = os.path.abspath(os.getcwd())
-        self.template_folder = os.path.join(self.home_folder, 'template')
-        self.html_template_folder = os.path.join(self.template_folder, 'html')
+        # self.home_folder = os.path.abspath(os.getcwd())
+        # self.template_folder = os.path.join(self.home_folder, 'template')
+        # self.html_template_folder = os.path.join(self.template_folder, 'html')
 
     def check_file(self):
         temp_file_path = pathlib.Path(self.file_path)
@@ -147,6 +146,7 @@ class ExamFile:
                               'FComp4': 'fcomp4',
                               'FComp5': 'fcomp5',
                               }
+
         self.db_df = pd.read_excel(self.file_path, sheet_name='db', index_col=False)
         self.db_df.dropna(subset=['regno'], inplace=True)
         self.db_df.rename(columns=rename_header_list, inplace=True)
@@ -154,7 +154,7 @@ class ExamFile:
     def to_dict(self):
         if self.db_df is None:
             self.load_db_df()
-        return self.db_df.to_dict(orient='records')
+        return self.db_df.to_dict('records')
 
     def db_to_print(self):
         if self.db_df is None:

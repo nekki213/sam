@@ -68,9 +68,9 @@ class ReportStudent:
             'SCORE_ATA3', 'OM_ATA3', 'ANP_ATA3', 'ATT_ATA3',    # total1
             'SCORE_ATA4', 'OM_ATA4', 'ANP_ATA4', 'ATT_ATA4',    # ut2
             'SCORE_ATA5', 'OM_ATA5', 'ANP_ATA5', 'ATT_ATA5',    # exam2
-            'SCORE_ATA6', 'OM_ATA6', 'ANP_ATA6', 'ATT_ATA6',    # dummy
-            'SCORE_ATA7', 'OM_ATA7', 'ENCOMMENT_ATA7', 'CHCOMMENT_ATA7', 'ANP_ATA7', 'ATT_ATA7',  # total2
-            'SCORE_ATA8', 'OM_ATA8', 'ANP_ATA8', 'ATT_ATA8',    # final
+            'SCORE_ATA6', 'OM_ATA6', 'ENCOMMENT_ATA6', 'CHCOMMENT_ATA6', 'ANP_ATA6', 'ATT_ATA6',    # total2
+            'SCORE_ATA7', 'OM_ATA7', 'ANP_ATA7', 'ATT_ATA7',  # final
+            # 'SCORE_ATA8', 'OM_ATA8', 'ANP_ATA8', 'ATT_ATA8',    # final
             ]
         self.column_to_view = {
             'CLASSLEVEL': {'classlevel': [0, 2]},
@@ -108,24 +108,25 @@ class ReportStudent:
             # 'SCORE_ATA5': {'wm2': [21, 28]},
             # 'OM_ATA5': {'wm2_ClassRank': [0, 10], 'wm2_FormRank': [10, 20]},
             # total2
-            # 'SCORE_ATA6': {'wmX': [21, 28]},
-            # 'OM_ATA6': {'wmX_ClassRank': [0, 10], 'wmX_FormRank': [10, 20]},
-            # 'ANP_ATA6': {'獎勵分2': [0, 6], '優點2': [6, 12], '小功2': [12, 18], '大功2': [18, 24],
-            #              '缺點2': [30, 36], '小過2': [36, 42], '大過2': [42, 48], '警告2': [48, 54]},
-            # 'ATT_ATA6': {'Absent2': [0, 6], 'EarlyLeave2': [6, 12], 'Late2': [12, 18]},
-            # total2
-            'SCORE_ATA7': {'wm2': [21, 28]},
-            'OM_ATA7': {'wm2_ClassRank': [0, 10], 'wm2_FormRank': [10, 20]},
-            'ANP_ATA7': {'獎勵分2': [0, 6], '優點2': [6, 12], '小功2': [12, 18], '大功2': [18, 24],
+            'SCORE_ATA6': {'wm2': [21, 28]},
+            'OM_ATA6': {'wm2_ClassRank': [0, 10], 'wm2_FormRank': [10, 20]},
+            'ANP_ATA6': {'獎勵分2': [0, 6], '優點2': [6, 12], '小功2': [12, 18], '大功2': [18, 24],
                          '缺點2': [30, 36], '小過2': [36, 42], '大過2': [42, 48], '警告2': [48, 54]},
-            'ATT_ATA7': {'Absent2': [0, 6], 'EarlyLeave2': [6, 12], 'Late2': [12, 18]},
+            'ATT_ATA6': {'Absent2': [0, 6], 'EarlyLeave2': [6, 12], 'Late2': [12, 18]},
             # final
-            'SCORE_ATA8': {'final': [21, 28]},
-            'OM_ATA8': {'final_ClassRank': [0, 10], 'final_FormRank': [10, 20]},
+            'SCORE_ATA7': {'final': [21, 28]},
+            'OM_ATA7': {'final_ClassRank': [0, 10], 'final_FormRank': [10, 20]},
+            # 'ANP_ATA7': {'獎勵分2': [0, 6], '優點2': [6, 12], '小功2': [12, 18], '大功2': [18, 24],
+            #              '缺點2': [30, 36], '小過2': [36, 42], '大過2': [42, 48], '警告2': [48, 54]},
+            # 'ATT_ATA7': {'Absent2': [0, 6], 'EarlyLeave2': [6, 12], 'Late2': [12, 18]},
+            # final
+            # 'SCORE_ATA8': {'final': [21, 28]},
+            # 'OM_ATA8': {'final_ClassRank': [0, 10], 'final_FormRank': [10, 20]},
             # 'ANP_ATA8': {'獎勵分8': [0, 6], '優點8': [6, 12], '小功8': [12, 18], '大功8': [18, 24],
             #              '缺點8': [30, 36], '小過8': [36, 42], '大過8': [42, 48], '警告8': [48, 54]},
             # 'ATT_ATA8': {'Absent8': [0, 6], 'EarlyLeave8': [6, 12], 'Late8': [12, 18]},
             }
+
         self.column_view = [
             'SCHYEAR', 'REGNO', 'ENNAME', 'CHNAME', 'SEX',
             'HKID', 'DOB', 'classlevel', 'class', 'CLASSNO',
@@ -159,6 +160,7 @@ class ReportStudent:
                 else:
                     self.view_df[key] = self.view_df[column].str[item[0]:item[1]].apply(
                         pd.to_numeric, errors='ignore')
+        self.view_df.to_excel('test10.xlsx')
         print(self.view_df.columns)
         # self.view_df = self.view_df[self.column_view]
         return self.view_df
@@ -272,15 +274,14 @@ class ReportScore:
             'OM_ATA4': {'ClassRank4': [0, 10], 'FormRank4': [10, 20], 'GroupRank4': [40, 50]},  # ut2
             # 'OM_ATA5': {'ClassRank5': [0, 10], 'FormRank5': [10, 20], 'GroupRank5': [40, 50]},  # exam2
             'OM_ATA6': {'ClassRank6': [0, 10], 'FormRank6': [10, 20], 'GroupRank6': [40, 50]},  # total2
-            'OM_ATA2': {'ClassRank7': [0, 10], 'FormRank7': [10, 20], 'GroupRank7': [40, 50]},  # final
+            'OM_ATA7': {'ClassRank7': [0, 10], 'FormRank7': [10, 20], 'GroupRank7': [40, 50]},  # final
             'OM_ATA8': {'ClassRank8': [0, 10], 'FormRank8': [10, 20], 'GroupRank8': [40, 50]},  # dummy
             }
         self.column_view = [
             'REGNO', 'subject_key',
             'SUBJCODE', 'SUBJCOMCODE',
             'CROSSCLSGRP', 'CROSSCLSSUBGRP',
-            'ENSUBJNAME',
-            'ENSUBJCOMNAME',
+            'ENSUBJNAME', 'ENSUBJCOMNAME',
             'SCORE_ATA1', 'ClassRank1', 'FormRank1', 'GroupRank1',  # ut1
             # 'SCORE_ATA2', 'ClassRank2', 'FormRank2', 'GroupRank2',  # ut1
             'SCORE_ATA3', 'ClassRank3', 'FormRank3', 'GroupRank3',  # ut1
@@ -356,9 +357,10 @@ class ReportScore:
                                                 'x' + self.view_df['SUBJCODE'] + self.view_df['SUBJCOMCODE'],
                                                 'x' + self.view_df['SUBJCODE']))
         self.view_df = self.view_df[self.column_view]
+        self.view_df.to_excel('score_view.xlsx')
         return self.view_df
         # merge conduct into student
-        #
+
 
 subject_from_code = {
     'x080': 'chi', 'x08001': 'chi01', 'x08002': 'chi02', 'x08003': 'chi03', 'x08004': 'chi04', 'x08005': 'chi05',
@@ -369,7 +371,7 @@ subject_from_code = {
     'x12N': 'baf', 'x81N': 'ict',
     'x265': 'lst',
     'x185': 'bik',
-    'x110': 'cps', 'x350': 'pth', 'x432': 'via', 'x130': 'dte', 'x240': 'hec',
+    'x110': 'cps', 'x350': 'pth', 'x432': 'via', 'x130': 'dte', 'x240': 'hec', 'x909': 'stm',
     'x300': 'mus', 'x310': 'ped',
     }
 
@@ -395,7 +397,8 @@ class Report:
         self.report_home = os.path.join(self.home_folder, self.exam_year + 'report')
         self.report_zip_folder = os.path.join(self.report_home, 'report_zip')
         self.report_unzip_folder = os.path.join(self.report_home, 'unzip')
-        self.report_template_folder = os.path.join(self.home_folder, 'template', 'report')
+        # move template back inside Report Home
+        self.report_template_folder = os.path.join(self.report_home, 'template', 'excel')
         self.report_exam_folder = os.path.join(self.report_home, 'report_' + self.exam_type)
 
         if self.exam_type in ['exam1', 'ut2', 'final']:
@@ -427,21 +430,26 @@ class Report:
 
         self.view_column = [
             'REGNO', 'HKID', 'STRN', 'CHNAME', 'ENNAME', 'SEX', 'DOB', 'SCHYEAR', 'CLASSNO',
-            'PROMOTESTATUS', 'STAFFCODE', 'CHSTAFFNAME', 'SCORE_ATA1', 'OM_ATA1', 'ANP_ATA1', 'ATT_ATA1', 'SCORE_ATA2',
-            'OM_ATA2', 'ANP_ATA2', 'ATT_ATA2', 'SCORE_ATA3', 'OM_ATA3', 'ANP_ATA3', 'ATT_ATA3', 'SCORE_ATA4', 'OM_ATA4',
-            'ANP_ATA4', 'ATT_ATA4', 'SCORE_ATA5', 'OM_ATA5', 'ENCOMMENT_ATA5', 'CHCOMMENT_ATA5', 'ANP_ATA5', 'ATT_ATA5',
-            'SCORE_ATA6', 'OM_ATA6', 'ENCOMMENT_ATA6', 'CHCOMMENT_ATA6', 'ANP_ATA6', 'ATT_ATA6', 'SCORE_ATA7',
-            'OM_ATA7', 'ENCOMMENT_ATA7', 'CHCOMMENT_ATA7', 'ANP_ATA7', 'ATT_ATA7', 'SCORE_ATA8', 'OM_ATA8',
-            'ENCOMMENT_ATA8', 'CHCOMMENT_ATA8', 'ANP_ATA8', 'ATT_ATA8', 'classlevel', 'class', 'ut1', 'x',
-            'ut1_ClassRank', 'ut1_FormRank', 'wm1', 'wm1_ClassRank', 'wm1_FormRank', '獎勵分1', '優點1', '小功1', '大功1', '缺點1',
-            '小過1', '大過1', '警告1', 'Absent1', 'EarlyLeave1', 'Late1', 'ut2', 'ut2_ClassRank', 'ut2_FormRank', 'wm2',
-            'wm2_ClassRank', 'wm2_FormRank', '獎勵分2', '優點2', '小功2', '大功2', '缺點2', '小過2', '大過2', '警告2', 'Absent2',
-            'EarlyLeave2', 'Late2', 'final', 'final_ClassRank', 'final_FormRank', 'CHCONDUCTNAME', 'CONDUCTGRADE_ATA7',
-            'chi', 'chi_rank', 'eng', 'eng_rank', 'mth_x', 'mth_rank_x', 'mth_y', 'mth_rank_y', 'm1', 'm1_rank', 'm2',
-            'm2_rank', 'chs', 'chs_rank', 'hst', 'hst_rank', 'geo', 'geo_rank', 'eco', 'eco_rank', 'isc', 'isc_rank',
-            'phy', 'phy_rank', 'chm', 'chm_rank', 'bio', 'bio_rank', 'baf', 'baf_rank', 'ict', 'ict_rank', 'lst',
-            'lst_rank', 'bik', 'bik_rank', 'cps', 'cps_rank', 'pth', 'pth_rank', 'via', 'via_rank', 'dte', 'dte_rank',
-            'hec', 'hec_rank', 'mus', 'mus_rank', 'ped', 'ped_rank',
+            'PROMOTESTATUS', 'STAFFCODE', 'CHSTAFFNAME',
+            'SCORE_ATA1', 'OM_ATA1', 'ANP_ATA1', 'ATT_ATA1', 'SCORE_ATA2', 'OM_ATA2', 'ANP_ATA2', 'ATT_ATA2',
+            'SCORE_ATA3', 'OM_ATA3', 'ANP_ATA3', 'ATT_ATA3', 'SCORE_ATA4', 'OM_ATA4', 'ANP_ATA4', 'ATT_ATA4',
+            'SCORE_ATA5', 'OM_ATA5', 'ENCOMMENT_ATA5', 'CHCOMMENT_ATA5', 'ANP_ATA5', 'ATT_ATA5',
+            'SCORE_ATA6', 'OM_ATA6', 'ENCOMMENT_ATA6', 'CHCOMMENT_ATA6', 'ANP_ATA6', 'ATT_ATA6',
+            'SCORE_ATA7', 'OM_ATA7', 'ENCOMMENT_ATA7', 'CHCOMMENT_ATA7', 'ANP_ATA7', 'ATT_ATA7',
+            'SCORE_ATA8', 'OM_ATA8', 'ENCOMMENT_ATA8', 'CHCOMMENT_ATA8', 'ANP_ATA8', 'ATT_ATA8',
+            'classlevel', 'class', 'ut1', 'x', 'ut1_ClassRank', 'ut1_FormRank', 'wm1', 'wm1_ClassRank', 'wm1_FormRank',
+            '獎勵分1', '優點1', '小功1', '大功1', '缺點1',
+            '小過1', '大過1', '警告1', 'Absent1', 'EarlyLeave1', 'Late1',
+            'ut2', 'ut2_ClassRank', 'ut2_FormRank', 'wm2', 'wm2_ClassRank', 'wm2_FormRank',
+            '獎勵分2', '優點2', '小功2', '大功2', '缺點2', '小過2', '大過2', '警告2', 'Absent2', 'EarlyLeave2', 'Late2',
+            'final', 'final_ClassRank', 'final_FormRank', 'CHCONDUCTNAME', 'CONDUCTGRADE_ATA7',
+            'chi', 'chi_rank', 'eng', 'eng_rank',
+            'mth_x', 'mth_rank_x', 'mth_y', 'mth_rank_y', 'm1', 'm1_rank', 'm2', 'm2_rank',
+            'chs', 'chs_rank', 'hst', 'hst_rank', 'geo', 'geo_rank', 'eco', 'eco_rank',
+            'isc', 'isc_rank', 'phy', 'phy_rank', 'chm', 'chm_rank', 'bio', 'bio_rank',
+            'baf', 'baf_rank', 'ict', 'ict_rank', 'lst', 'lst_rank',
+            'bik', 'bik_rank', 'cps', 'cps_rank', 'pth', 'pth_rank', 'via', 'via_rank',
+            'stm', 'stm_rank', 'dte', 'dte_rank', 'hec', 'hec_rank', 'mus', 'mus_rank', 'ped', 'ped_rank',
             ]
 
         self.wm_rank_col_common = ['REGNO', 'ENNAME', 'CHNAME', 'SEX', 'classlevel', 'class', 'CLASSNO']
@@ -477,12 +485,13 @@ class Report:
         elif self.exam_type == 'final':
             self.wm_class_rank_col = ['final', 'final_ClassRank']
             self.wm_form_rank_col = ['final', 'final_FormRank']
-            # self.class_rank_col = ['SCORE_ATA7', 'ClassRank7']
-            self.class_rank_col = ['SCORE_ATA8', 'ClassRank8']
-            # self.form_rank_col = ['SCORE_ATA7', 'FormRank7'],  # final
-            self.form_rank_col = ['SCORE_ATA8', 'FormRank8']
-            # self.group_rank_col = ['SCORE_ATA7', 'GroupRank7'],  # final
-            self.group_rank_col = ['SCORE_ATA8', 'GroupRank8']
+            self.class_rank_col = ['SCORE_ATA7', 'ClassRank7']
+            # self.class_rank_col = ['SCORE_ATA8', 'ClassRank8']
+            self.form_rank_col = ['SCORE_ATA7', 'FormRank7']  # final
+            # self.form_rank_col = ['SCORE_ATA8', 'FormRank8']
+            self.group_rank_col = ['SCORE_ATA7', 'GroupRank7']  # final
+            # self.group_rank_col = ['SCORE_ATA8', 'GroupRank8']
+            print(type(self.form_rank_col))
 
         elif self.exam_type == 'mock':
             self.wm_class_rank_col = ['final', 'final_ClassRank']
@@ -512,16 +521,16 @@ class Report:
                     extract_folder = os.path.join(self.report_unzip_folder, self.exam_type, classlevel)
                     if not os.path.exists(extract_folder):
                         try:
-                            print('\tmkdir', extract_folder)
+                            print(f'\tmkdir { extract_folder }')
                             os.mkdir(extract_folder)
                         except OSError:
-                            print('\terror: {} is not ready.'.format(extract_folder))
+                            print(f'\terror: { extract_folder } is not ready.')
 
                     with zipfile.ZipFile(file=entry, mode='r') as z:
                         # zip.printdir()
-                        print('extracting {} {}'.format(classlevel, exam_type))
+                        print(f'extracting { classlevel } { exam_type }')
                         for key, file in self.report_file_dict.items():
-                            print('\t{} {} ...'.format(classlevel, file))
+                            print(f'\t{ classlevel } { file } ...')
                             z.extract(file, path=extract_folder)
 
     def load_file_to_df(self):
@@ -531,7 +540,7 @@ class Report:
         print('merge student, conduct and score files')
         temp_classlevel_list = self.classlevel_list
         for key, item in self.report_df_dict.items():
-            print('\t{} {}'.format(key, item))
+            print(f'\t{ key } { item }')
             for classlevel in self.classlevel_list:
                 filename = self.report_file_dict[key]
                 file_to_load = os.path.join(self.report_unzip_folder, self.exam_type, classlevel, filename)
@@ -543,15 +552,15 @@ class Report:
                     item.df = item.df.append(temp_df[temp_column])
                 else:
                     temp_classlevel_list.remove(classlevel)
-                    print('\t{}: {} does not exist'.format(classlevel, file_to_load))
+                    print(f'\t{ classlevel }: { file_to_load } does not exist')
                 # print('{}: row {} col {}'.format(classlevel, len(item.df), len(item.df.columns)))
 
             item.df[item.df.columns].reset_index(inplace=True)
-            print('classlevel: {}'.format(temp_classlevel_list))
-            print('{}: row {} col {}'.format(key, len(item.df), len(item.df.columns)))
+            print(f'classlevel: {temp_classlevel_list }')
+            print(f'{ key }: row { len(item.df) } col { len(item.df.columns) }')
 
         for key in ['student', 'score']:
-            print('\tcreate {} view'.format(key))
+            print(f'\tcreate { key } view')
             view_file = os.path.join(self.report_exam_folder,
                                      self.exam_year + '-' + self.exam_type + '-' + key + '-view.xlsx')
             self.report_df_dict[key].view()
@@ -569,11 +578,12 @@ class Report:
         temp_col = self.report_df_dict['student'].column
         # print('temp_col: {}'.format(temp_col))
         temp_col_dict = dict(zip(temp_col, range(1, len(temp_col)+1)))
-        print('\twriting {} sheet.'.format('STUDENT'))
+        print('\twriting {} sheet.'.format('student'))
         cur_row = 2
-        for record in temp_df.sort_values(
-                    by=['CLASSLEVEL', 'CLASS', 'CLASSNO'],
-                    ascending=[True, True, True]).to_dict(orient='records'):
+        # for record in temp_df.sort_values(
+        #             by=['CLASSLEVEL', 'CLASS', 'CLASSNO'],
+        #             ascending=[True, True, True]).to_dict(orient='records'):
+        for record in temp_df.to_dict(orient='records'):
             for key, item in record.items():
                 if key in temp_col:
                     if item is not None:
@@ -583,7 +593,7 @@ class Report:
                 elif key == 'index':
                     pass
                 else:
-                    print('key {} not found'.format(key))
+                    print(f'key { key } not found')
             cur_row += 1
 
         # write conductDF into conduct sheet
@@ -603,7 +613,7 @@ class Report:
                 elif key == 'index':
                     pass
                 else:
-                    print('key {} not found'.format(key))
+                    print(f'key { key } not found')
             cur_row += 1
 
         # write conductDF into conduct sheet
@@ -626,12 +636,12 @@ class Report:
                 elif key == 'index':
                     pass
                 else:
-                    print('key {} not found'.format(key))
+                    print(f'key { key } not found')
             cur_row += 1
 
         report_wb.save(self.report_all_file)
         report_wb.close()
-        print('report file generated: {}'.format(self.report_all_file))
+        print(f'report file generated: { self.report_all_file }')
 
     def view(self):
         # merge conduct into student
@@ -664,6 +674,7 @@ class Report:
             'x240': ['hec', 'Home Economics'],
             'x300': ['mus', 'Music'],
             'x310': ['ped', 'Physical Education Lessons'],
+            'x909': ['stm', 'STEM']
         }
 
         view_wb = openpyxl.load_workbook(self.rank_template)
@@ -691,6 +702,7 @@ class Report:
                                         how='outer', on='REGNO')
                 self.view_df = self.view_df.rename(columns={conduct['column']: item + str(key)})
 
+        print(self.form_rank_col)
         temp_subjects_filter = ['REGNO', 'subject_key'] + self.form_rank_col
         score_df = (self.report_df_dict['score'].view_df[temp_subjects_filter]
                         .sort_values(by=['REGNO'], ascending=[True]))
@@ -717,7 +729,7 @@ class Report:
         # print(len(self.view_df.columns), len(self.view_df[self.view_column].columns))
         self.view_df.to_excel(view_writer, sheet_name=self.exam_type, index=False)
         # self.view_df[self.view_column].to_excel(view_writer, sheet_name='all', index=False)
-        print('\tview file: {}'.format(self.view_file))
+        print(f'\tview file: { self.view_file }')
         view_writer.save()
         view_writer.close()
 
@@ -725,7 +737,7 @@ class Report:
         student_column_filter = ['REGNO', 'CHNAME', 'ENNAME', 'SCHYEAR', 'CLASS', 'CLASSNO',
                                  'CHSTAFFNAME', 'ANPCHDESC',
                                  'SCORE_ATA7', 'OM_ATA7',
-                                 'CHCOMMENT_ATA7', 'ANP_ATA7', 'ATT_ATA7', 'SCORE_ATA8', 'OM_ATA8']
+                                 'CHCOMMENT_ATA6', 'ANP_ATA6', 'ATT_ATA6', 'SCORE_ATA8', 'OM_ATA8']
         conduct_column_filter = ['REGNO', 'CHCONDUCTNAME', 'CONDUCTGRADE_ATA7']
         score_column_filter = ['REGNO', 'SUBJCODE', 'SUBJCOMCODE',
                                'ENSUBJNAME', 'ENSUBJCOMNAME',
@@ -741,7 +753,7 @@ class Report:
                         '075_': 'chs', '235_': 'hst', '210_': 'geo', '135_': 'eco',
                         '260_': 'isc', '315_': 'phy', '070_': 'chm', '045_': 'bio',
                         '12N_': 'baf', '81N_': 'ict',
-                        '265_': 'lst', '185_': 'bik', '300_': 'mus', '310_': 'ped',
+                        '265_': 'lst', '185_': 'bik', '300_': 'mus', '310_': 'ped', '909_': 'stm',
                         '110_': 'cps', '350_': 'pth', '432_': 'via', '130_': 'dte', '240_': 'hec',
                         }
 
@@ -755,19 +767,19 @@ class Report:
                 p_item = ['缺點', '小過', '大過']
                 ap_dict = dict(zip(ap_list, [int(x) for x in ap_string.split()]))
                 k = [str(n) + text if n else '' for text, n in ap_dict.items()]
-                list = [''.join(k[1:4]), '/',  ''.join(k[4:7])]
-                list2 = [x if len(x) else '****' for x in list]
+                list1 = [''.join(k[1:4]), '/',  ''.join(k[4:7])]
+                list2 = [x if len(x) else '****' for x in list1]
                 s = ''.join(list2)
                 return s
 
         # AbsentDay + EarlyLeaveDay + LateDay
         # English Field: (6 + 6 + 6)
-
         # (Lvl1 + Lvl2 + Lvl3 + Lvl4 + Lvl5 Merit) + (Lvl1 + Lvl2 + Lvl3 + Lvl4 + Lvl5 Demerit) +
         # (CalCondMark + Awarded Conduct Mark + Deducted Conduct Mark + Conduct Mark Reason)
         # (English 6 + English 6 + English 6 + English 6 + English 6 + English 6 + English 6 +
         # English 6 + English 6 + English 6 + English 7 + English 6 + English 6 + Bilingual 60)
-        # CHCONDUCTNAME:守時/儀容/呈交功課表現/禮貌/責任感
+        # CHCONDUCTNAME: 守時/儀容/呈交功課表現/禮貌/責任感
+
         conduct_list = ['守時', '儀容', '呈交功課表現', '禮貌', '責任感']
 
         stu_df = pd.read_excel(self.report_all_file,
@@ -787,12 +799,12 @@ class Report:
         score_df['subject_code'].replace(subject_dict, inplace=True)
         score_column = ['REGNO', 'subject_code', 'SCORE_ATA7', 'ENGRADE_ATA7', 'class_rank', 'form_rank']
         score_pivot = score_df[['REGNO', 'subject_code', 'score']].pivot_table(index=['REGNO'],
-                                                                                    columns='subject_code',
-                                                                                    values='score')
-     #   crank_pivot = score_df[['REGNO', 'subject_code', 'class_rank']].pivot_table(index=['REGNO'],
-     #                                                                               columns='subject_code',
-     #                                                                               values='class_rank')
-     #   frank_pivot = score_df[['REGNO', 'subject_code', 'form_rank']].pivot_table(index=['REGNO'],
+                                                                               columns='subject_code',
+                                                                               values='score')
+     # crank_pivot = score_df[['REGNO', 'subject_code', 'class_rank']].pivot_table(index=['REGNO'],
+     #                                                                              columns='subject_code',
+     #                                                                              values='class_rank')
+     # frank_pivot = score_df[['REGNO', 'subject_code', 'form_rank']].pivot_table(index=['REGNO'],
      #                                                                              columns='subject_code',
      #                                                                              values='form_rank')
         score_df[score_column].to_excel('score.xlsx', index=False)
@@ -811,7 +823,7 @@ class Report:
                                'CHNAME': 'chname',
                                'ENNAME': 'enname',
                                'CLASSNO': 'classno',
-                               'CHCOMMENT_ATA7': 'comment'}, inplace=True)
+                               'CHCOMMENT_ATA6': 'comment'}, inplace=True)
 
         stu_df['classlevel'] = stu_df['CLASS'].str[:2]
         stu_df['classcode'] = stu_df['CLASS'].str[:3]
@@ -822,9 +834,9 @@ class Report:
         stu_df['ct2'] = stu_df['CHSTAFFNAME'].str[6:12]
         stu_df['wm'] = stu_df['SCORE_ATA7'].str[20:27].astype(float)
         stu_df['rank'] = stu_df['OM_ATA7'].str[10:20]
-        stu_df['abs'] = stu_df['ATT_ATA7'].str[0:6].astype(float)
-        stu_df['late'] = stu_df['ATT_ATA7'].str[12:18].astype(float)
-        stu_df['ap_temp'] = stu_df['ANP_ATA7'].fillna('-1')
+        stu_df['abs'] = stu_df['ATT_ATA6'].str[0:6].astype(float)
+        stu_df['late'] = stu_df['ATT_ATA6'].str[12:18].astype(float)
+        stu_df['ap_temp'] = stu_df['ANP_ATA6'].fillna('-1')
         stu_df['ap_text'] = stu_df['ap_temp'].apply(ap_text)
 
         record_card_column2 = ['key', 'regno', 'enname', 'chname',
@@ -834,14 +846,15 @@ class Report:
                                'abs', 'late', 'ap_text'] + list(subject_dict.values())
 
         stu_df[record_card_column2].to_excel('temp.xlsx', index=False)
-        #stu_df.to_excel('temp.xlsx', index=False)
+        # stu_df.to_excel('temp.xlsx', index=False)
 
     def filter_rank(self):
         # build a list of filter to sort out
-        # class rank : s1, s2, s3 only
-        # improved : s1, s2, s3, s4, s5 only
-        # form rank : s1 - s6, all subjects
-        # group rank : s4 - s5, x-subject
+        # #1 class rank : s1, s2, s3 only
+        # #2 improved : s1, s2, s3, s4, s5 only
+        # #3 form rank : s1 - s6, all subjects
+        # #4 group rank : s4 - s5, x-subject
+
         subject_rank_col_common = ['REGNO', 'ENNAME', 'CHNAME', 'SEX', 'classlevel',
                                    'class', 'CLASSNO', 'ENSUBJNAME', 'SUBJCODE']
 
@@ -854,21 +867,25 @@ class Report:
         rank_writer.book = rank_wb
 
         print('filter rankings')
-        print('rank:', self.rank_file)
+        print(f'award file: { self.rank_file }')
 
+        # 1.    Get Class Rank from 1 to 5
+        #       Use filter on classlevel and self.wm_class_rank_col
         print('\tsheet', 'wm_rank_class')
         stu_df = self.report_df_dict['student'].view_df
-        # stu_temp_df.to_excel(rank_writer, sheet_name='raw', index=False)
+        # stu_df.to_excel('stu_df.xlsx')
         # exam_type_temp = 'final'
         temp_df = stu_df[stu_df[self.wm_class_rank_col[1]] < 6]
 
         temp_df = (temp_df[temp_df.classlevel.isin(classlevel_list_upper)]
                    .sort_values(by=['classlevel', 'class', self.wm_class_rank_col[0]],
                                 ascending=[True, True, False]))
-        temp_df.to_excel('b.xlsx')
+
         filter_col = self.wm_rank_col_common + self.wm_class_rank_col
         temp_df[filter_col].to_excel(rank_writer, sheet_name='wm_rank_class', index=False)
 
+        # 2.    Get Form Rank from 1 to 5
+        #       Use filter on classlevel and self.wm_form_rank_col
         print('\tsheet', 'wm_rank_form')
         temp_df = stu_df[stu_df[self.wm_form_rank_col[1]] < 6]
         temp_df = (temp_df[temp_df.classlevel.isin(classlevel_list_upper)]
@@ -877,25 +894,38 @@ class Report:
         filter_col = self.wm_rank_col_common + self.wm_form_rank_col
         temp_df[filter_col].to_excel(rank_writer, sheet_name='wm_rank_form', index=False)
 
-        if self.exam_type in ['exam2']:
+        # 3.    Get Form Rank from 1 to 5
+        #       Use filter on classlevel and self.wm_form_rank_col
+        if self.exam_type in ['exam2', 'final']:
             print('\tsheet', 'improved')
+            print(f'classlevel_list_upper: { classlevel_list_upper }')
             filter_classlevel = stu_df.classlevel.isin(classlevel_list_upper)
-            temp_df = stu_df[filter_classlevel]
-            temp_df['improved'] = temp_df['wm2'] - temp_df['wm1']
-            filter_improved = temp_df['improved'] >= 5
-            temp_df = temp_df[filter_improved]
-            temp_df['improved_rank_min'] = temp_df.groupby('class')['improved'].rank()
-            temp_df['improved_rank_max'] = temp_df.groupby('class')['improved'].rank(method='max')
-            # temp_df.to_excel(rank_writer, sheet_name='temp4', index=False)
-            temp_df = (temp_df[temp_df.classlevel.isin(classlevel_list_upper)]
-                       .sort_values(by=['classlevel', 'class', 'improved_rank_min'],
-                                    ascending=[True, True, False]))
-            filter_col =  self.wm_rank_col_common + ['wm1', 'wm2', 'improved', 'improved_rank_min', 'improved_rank_max']
-            temp_df[filter_col].to_excel(rank_writer, sheet_name='improved_rank_class', index=False)
-        else:
-            print('\timproved list will be skipped in {}'.format(self.exam_type))
+            temp_df2 = stu_df[filter_classlevel]
+            # print(f'stu_df: { len(temp_df2)}')
+            # temp_df2.to_excel('test_stu_df.xlsx')
+            # print(filter_classlevel)
+#            for classlevel in ['S1', 'S2', 'S3']:
+            #temp_df2['wm2_x'] = temp_df2['wm2'].astype(str).strip().ap
+            temp_df2['wm2x'] = temp_df2['wm2'].apply(lambda x: x if len(str(x).strip()) > 0 else -1)
+            print(len(temp_df2))
+            # print(temp_df['wm2'])
+            # temp_df[['wm2']].to_excel('wm.xlsx')
+            temp_df2.to_excel('test_stu_df.xlsx')
+            temp_df2['improved'] = temp_df2['wm2x'] - temp_df2['wm1']
+            temp_df2['improved_rank'] = temp_df2.groupby('class')['improved'].rank()
+            temp_df2.to_excel('test.xlsx')
 
-        # 3. Filter Class 1-6 of each subject
+            #temp_df['improved_rank_max'] = temp_df.groupby('class')['improved'].rank(method='max')
+            # temp_df.to_excel(rank_writer, sheet_name='temp4', index=False)
+            temp_df2 = (temp_df2[temp_df2.classlevel.isin(classlevel_list_upper)]
+                       .sort_values(by=['classlevel', 'class', 'improved_rank'],
+                                    ascending=[True, True, False]))
+            filter_col = self.wm_rank_col_common + ['wm1', 'wm2', 'improved', 'improved_rank']
+            temp_df2[filter_col].to_excel(rank_writer, sheet_name='improved_rank_class', index=False)
+        else:
+            print(f'\timproved list will be skipped in { self.exam_type }')
+
+        # 4. Filter Class 1-6 of each subject
         #    Need to filter out chi and eng components
         print('\tsheet', 'subj_rank_class')
 
@@ -932,7 +962,7 @@ class Report:
         temp_df = (temp_df[~temp_df.subject_key.isin(chi_eng_component_list)]
                    .sort_values(by=['classlevel', 'subject_key', self.form_rank_col[1]],
                                 ascending=[True, True, True]))
-        #temp_df['ENSUBJNAME'] = temp_df['ENSUBJNAME'].map(subject_column_replace)
+        # temp_df['ENSUBJNAME'] = temp_df['ENSUBJNAME'].map(subject_column_replace)
         filter_col = subject_rank_col_common + self.form_rank_col
         temp_df[filter_col].to_excel(rank_writer, sheet_name='subj_rank_form', index=False)
 

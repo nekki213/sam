@@ -1,13 +1,12 @@
-from websams.model.examrun import ExamRun
-from websams.model.examclass import ExamClass
-from websams.model.examfile import ExamFile
-from websams.model.assessment import Assessment
-from websams.model.student import Student
-from websams.model.student import ClassList
-from websams.model.dic import Conduct
-from websams.model.report import Report
-#from websams.model.reportcard import RecordCard
-#from websams.model.detention import Detention
+from model.examrun import ExamRun
+from model.examclass import ExamClass
+from model.examfile import ExamFile
+from model.assessment import Assessment
+from model.student import Student
+from model.student import ClassList
+from model.dic import Conduct
+from model.report import Report
+#from reportcard import RecordCard
 '''
 
 ExamRun :  Define how to run exam
@@ -30,6 +29,5 @@ __all__ = ['ExamRun',
            'Conduct',
            'Report',
            #'RecordCard',
-           #'Detention'
            ]
 

@@ -8,9 +8,10 @@ import datetime
 import pandas as pd
 from jinja2 import Environment
 from jinja2 import FileSystemLoader
-# need wkhtmltopdf by brew
+# need wkhtmltopdf
 import pdfkit
-from websams.model.examfile import ExamFile
+from model.examfile import ExamFile
+from model.examrun import ExamRun
 from PyPDF2 import PdfFileMerger
 
 
@@ -18,73 +19,77 @@ def converter(column: list):
     return {col: str for col in range(len(column))}
 
 
-def student_to_jinja(student_list):
-    subject_type = ['chi', 'eng', 'mth', 'chs', 'hst',
-                    'geo', 'eco', 'isc', 'phy', 'chm',
-                    'bio', 'bik', 'lst', 'pth', 'cps',
-                    'via', 'mus', 'ped', 'dte', 'hec']
-
-    subject_rank_type = ['Chi Form Rank', 'Eng Form Rank', 'Mth Form Rank', 'Chs Form Rank', 'Hst Form Rank',
-                         'Geo Form Rank', 'Eco Form Rank', 'Isc Form Rank', 'Phy Form Rank', 'Chm Form Rank',
-                         'Bio Form Rank', 'Bik Form Rank', 'Lst Form Rank', 'Pth Form Rank', 'Cps Form Rank',
-                         'Via Form Rank', 'Mus Form Rank', 'Ped Form Rank', 'Dte Form Rank', 'Hec Form Rank']
-    mark_type = ['wm']
-    rank_type = ['Class Rank', 'Form Rank', '及格科目', 'Improved Rank']
-    stuinfo_type = ['key', 'chname', 'sex']
-    print(student_list)
-    student_jinja_list = []
-    for student in student_list:
-        temp_dict = {}
-        for key, item in student.items():
-            if key in stuinfo_type:
-                temp_dict[key] = item
-            elif key in subject_type:
-                print(key, item)
-                temp_dict[key] = {'mark': '{:.2f}'.format(item)}
-                temp_dict[key]['pass'] = (item >= 50)
-            elif key in subject_rank_type:
-                subject_key = key[:3].lower()
-                temp_dict[subject_key]['rank'] = '{:.0f}'.format(item)
-            elif key in mark_type:
-                temp_dict[key] = {'mark': '{:.2f}'.format(item)}
-            elif key in rank_type:
-                temp_dict[subject_key]['rank'] = '{:.0f}'.format(item)
-        print(temp_dict)
-        student_jinja_list.append(temp_dict)
-
-    return student_jinja_list
-
-
 class Assessment:
-    def __init__(self, assessment_name, assessment_exam_class_dict):
+    def __init__(self, exam_year: str, assessment: str, exam_type: str):
+
+        if assessment in ['ut1', 'ut2', 'exam1', 'exam2', 'mock']:
+            pass
+        else:
+            print(f'assessment must be from [ut1, ut2, exam1, exam2, mock]')
+            return
+
+        if exam_type in ['ut1', 'ut2', 'exam1', 'exam2', 'final']:
+            pass
+        else:
+            print(f'exam_type must be from [ut1, ut2, exam1, exam2, final]')
+            return
+
         # assessment_name: year + exam_type
-        # 2021ut1 / 2021exam1 / 2021ut2 / 2021final / 2021mock
-        self.assessment_name = assessment_name
-        self.exam_year = assessment_name[0:4]
-        self.full_exam = assessment_name[0:4] + 'exam'
-        self.assessment = assessment_name[4:]
-        self.assessment2 = 'exam2' if assessment_name[4:] == 'final' else assessment_name[4:]
-        self.check_mark_template_exam_type = 'exam' if self.assessment2[:4] == 'exam' else 'ut'
-        # assessment2_name: year + exam_type
+        # ut1 / exam1 / ut2 / exam2 / mock  : { 2021exam/{ assessment }
+        # self.assessment_name = assessment
+        # self.full_exam = exam_year + 'exam'
+
+        self.exam_year = exam_year
+        self.assessment = assessment
+        self.exam_type = exam_type
+
+        # assessment_name: year + exam_type
         # 2021ut1 / 2021exam1 / 2021ut2 / 2021exam2 / 2021mock
-        self.assessment2_name = self.exam_year + self.assessment2
+        self.assessment_name = self.exam_year + assessment
+
+        self.check_mark_template_exam_type = 'exam' if self.assessment in ['exam1', 'exam2', 'mock'] else 'ut'
 
         # folder setting here
         # python files live in the root level
         # model files live in (root)\model\
-        self.home_folder = os.path.abspath(os.getcwd())
-        self.template_folder = os.path.join(self.home_folder, 'template')
-        self.html_template_folder = os.path.join(self.template_folder, 'html')
-        self.assessment_home_folder = os.path.join(self.home_folder, self.full_exam)
-        self.assessment_folder = os.path.join(self.home_folder, self.full_exam, self.assessment2)
-        self.analysis_folder = os.path.join(self.assessment_home_folder, 'analysis')
+
+        # websams root folder as the ultima root folder
+        # home folder : 'websams\2122\'
+        # to hold all folders (in the same school year) within home folder
+
+        self.websams_root_folder = os.path.abspath(os.getcwd())                             # /websams
+        self.template_root_folder = os.path.join(self.websams_root_folder, 'template')      # /websams/template
+        self.schyear_home_folder = os.path.join(self.websams_root_folder, self.exam_year)   # /websams/2021
+        # template folder of current year
+        # copy from self.template_root_folder
+        self.template_folder = os.path.join(self.schyear_home_folder, '_template')          # /websams/2021/_template
+        self.html_template_root_folder = os.path.join(self.template_folder, 'html')
+        if pathlib.Path(self.template_folder).exists():
+            pass
+        else:
+            print(f'copy { self.template_root_folder } to { self.template_folder }')
+
+        # /websams/2021/2021exam
+        self.assessment_root_folder = os.path.join(self.schyear_home_folder, self.exam_year + 'exam')
+        if pathlib.Path(self.assessment_root_folder).exists():
+            pass
+        else:
+            os.makedirs(self.assessment_root_folder, exist_ok=True)
+
+        # websams/2021/2021exam/{ exam }
+        self.assessment_folder = os.path.join(self.assessment_root_folder, self.assessment)
+        # analysis folder to hold all final version analysis files
+        self.analysis_folder = os.path.join(self.assessment_root_folder, 'analysis')
+        if pathlib.Path(self.analysis_folder).exists():
+            pass
+        else:
+            os.makedirs(self.analysis_folder, exist_ok=True)
+
+        # all sub folders in assessment_folder
         self.merge_folder = os.path.join(self.assessment_folder, 'merge')
         self.check_mark_folder = os.path.join(self.assessment_folder, 'check_mark')
         self.db_folder = os.path.join(self.assessment_folder, 'db')
         self.pdf_folder = os.path.join(self.assessment_folder, 'pdf')
-
-        # 1920exam\$exam_type$\websams_import\
-        # 1920exam\$exam_type$\websams_src\
         self.websams_import_folder = os.path.join(self.assessment_folder, 'websams_import')
         self.websams_src_folder = os.path.join(self.assessment_folder, 'websams_src')
         # folder structure inside assessment home
@@ -96,20 +101,24 @@ class Assessment:
                        'analysis': 'analysis',
                        'check_mark': 'check_mark'
                        }
-
         # build folder in assessment home
         # setup assessment mark list
         # for handling of 'final'
         for key, folder in self.folder.items():
             folder_to_create = os.path.join(self.assessment_folder, folder)
-            if not os.path.exists(folder_to_create):
-                try:
-                    print('mkdir', folder_to_create)
-                    os.mkdir(folder_to_create)
-                except OSError:
-                    print('Error: {} is not ready.'.format(folder_to_create))
+            if pathlib.Path(folder_to_create).exists():
+                pass
+            else:
+                print('mkdir', folder_to_create)
+                os.makedirs(folder_to_create, exist_ok=True)
 
-        self.assessment_exam_class_dict = assessment_exam_class_dict
+        # load exam_run and assessment
+        self.exam_run = ExamRun(self.exam_year)
+        # load from exam_run
+        self.exam_run.load_assessment(self.assessment)
+        self.assessment_exam_class_dict = self.exam_run.assessment_dict
+        self.ct_dict = self.exam_run.load_ct_to_dict()
+
         self.assessment_exam_file_dict = {}
         self.assessment_exam_file_tch_dict = {}
         self.assessment_exam_file_state_list = []
@@ -124,6 +133,8 @@ class Assessment:
         self.analysis_template_src = \
             {'s123': os.path.join(self.template_folder, 'exam', 's123-analysis.xlsm'),
              's456': os.path.join(self.template_folder, 'exam', 's456-analysis.xlsm')}
+        # about analysis src file
+        # should use exam_run to create the master template for the current school year
 
         self.check_file = os.path.join(self.db_folder, self.exam_year + '-' + self.assessment + '-view-all.xlsm')
         self.db_file = os.path.join(self.db_folder, self.exam_year + '-' + self.assessment + '-db.xlsx')
@@ -151,7 +162,7 @@ class Assessment:
         # select mark_column by exam
         # for analysis / websams
         if self.assessment in ['ut1', 'ut2']:
-            self.mark_col = self.assessment
+            self.mark_col = self.assessment     # ut1, ut2
         elif self.assessment == 'exam1':
             self.mark_col = 'total1'
         elif self.assessment == 'exam2':
@@ -162,17 +173,28 @@ class Assessment:
             self.mark_col = 'final'
 
         # create ExamFile for each mark file using exam_class_dict (load from exam_run)
+        # exam_file_name format change
+        # new format
+        # class:    { exam_year }_{ assessment }_{ classcode }_{ subject }_{ teacher }.xlsx
+        # group:    { exam_year }_{ assessment }_{ classlevel }_{ groupcode}_{ subject }_{ teacher }.xlsx
         for key, exam_class in self.assessment_exam_class_dict.items():
-            exam_file_name = self.assessment2_name + exam_class.basename
+            exam_file_name = self.assessment_name + exam_class.basename
             temp_file_path = os.path.join(self.merge_folder,
                                           exam_class.subject,
                                           exam_file_name)
             self.assessment_exam_file_dict[key] = ExamFile(exam_class,
                                                            temp_file_path,
-                                                           self.assessment2_name)
+                                                           self.assessment_name)
 
-    def name(self):
-        return self.full_exam + "/" + self.assessment
+    def __str__(self):
+        return self.exam_year + '/' + self.assessment + '/' + self.exam_type
+
+    def create_markfile(self):
+        self.exam_run.create()
+
+    def rename_markfile(self):
+        # wrapper for ExamRun.rename
+        return 0
 
     def check_assessment_file(self):
         # check exam files in assessment folder
@@ -184,7 +206,6 @@ class Assessment:
             print('All files are ready.')
 
     def exam_file_to_dict(self):
-        num_of_files = 0
         # logfile = open('log.txt', 'w')
         # get back exam_type from exam_col first
         # exam_type = exam_from_col[exam_col]
@@ -199,12 +220,13 @@ class Assessment:
         print('***                          Warning!                            ***')
         print('***                                                              ***')
         print('********************************************************************')
-        print('The excel files shall be freshly saved by ms excel, not by openpyxl.')
+        print('The excel files shall be freshly saved by excel, not by openpyxl.   ')
         print('Otherwise, no values (by formula) can be read.')
         print('\n')
         print('read mark file and merge into a dict.')
         print('mark file db column taken:'.format(self.mark_col))
 
+        # match markfile db sheet header
         db_header = ['regno', 'enname', 'chname', 'sex',  # 0-3
                      'classlevel', 'classcode', 'classno', 'subject', 'group',  # 4-8
                      'ut1', 'daily1', 'exam1', 'total1',  # 9-12
@@ -213,6 +235,7 @@ class Assessment:
                      't2comp1', 't2comp2', 't2comp3', 't2comp4', 't2comp5',  # 23-27
                      'fcomp1', 'fcomp2', 'fcomp3', 'fcomp4', 'fcomp5',  # 28-32
                      ]
+        # match view file (for check mark) header
         view_header = ['key1', 'key1x', 'key2', 'formkey', 'key3', 'xgroup', 'examtype', 'score',  # 1
                        'regno', 'enname', 'chname', 'sex',  # 9
                        'classlevel', 'classcode', 'classno', 'subject', 'group',  # 13
@@ -222,6 +245,7 @@ class Assessment:
                        't2comp1', 't2comp2', 't2comp3', 't2comp4', 't2comp5',  # 33
                        'fcomp1', 'fcomp2', 'fcomp3', 'fcomp4', 'fcomp5',  # 38
                        ]
+
         comp_col = {'ut1': [0],
                     'total1': ['t1comp1', 't1comp2', 't1comp3', 't1comp4', 't1comp5'],
                     'ut2': [0],
@@ -231,7 +255,6 @@ class Assessment:
                     }
 
         # db_header_dict = dict(zip(db_header, range(1, len(db_header)+1)))
-
         # use a new wb to save db
         exam_db_wb = openpyxl.Workbook(write_only=True)
         exam_db_ws = exam_db_wb.create_sheet(title='db')
@@ -245,6 +268,7 @@ class Assessment:
         # also use for websams import files
         student_mark = []       # for exam-view file: temp_dic
         self.students = {}
+        num_of_files = 0
 
         # define the path: merge_folder
         # loop through all the subject folder in merge/(exam) folder
@@ -565,8 +589,7 @@ class Assessment:
         class_filter_list = {'s123': ['S1', 'S2', 'S3'],
                              's456': ['S4', 'S5', 'S6'],
                              's45': ['S4', 'S5'],
-                             's6': ['S6'],
-                             }
+                             's6': ['S6']}
 
         print('write analysis')
         df = self.students_df()
@@ -587,7 +610,7 @@ class Assessment:
                 src_ws.cell(row=1, column=column_full.index(col_title) + 1).value = col_title
 
             row = 2
-            for student in temp_df.to_dict(orient='records'):
+            for student in temp_df.to_dict('records'):
                 # print(student)
                 for key, item in student.items():
                     if key in column_full:
@@ -616,7 +639,7 @@ class Assessment:
 
         copy_ws_list = {'ut1': ['s1ut', 's2ut', 's3ut', 's4ut', 's5ut', 's6ut'],
                         'exam1': ['s1ex1', 's2ex1', 's3ex1', 's4ex1', 's5ex1'],
-                        'ut2': ['s1ut2', 's2ut2', 's3ut2', 's4ut2', 's5ut2'],
+                        'ut2': ['s1ut', 's2ut', 's3ut', 's4ut', 's5ut'],
                         'exam2': ['s1ex2', 's2ex2', 's3ex2', 's4ex2', 's5ex2'],
                         'final': ['s1final', 's2final', 's3final', 's4final', 's5final'],
                         }
@@ -682,6 +705,7 @@ class Assessment:
 
         check_mark_template = 'check_mark_' + self.check_mark_template_exam_type + '_' + cat + '_template.html'
         print(check_mark_template)
+        # exam_file load mark_col(s) by its filename
         class_statistics = exam_file.get_class_statistics()
         student_marks_dict = exam_file.db_to_print().to_dict('records')
         # print(student_marks_dict)
@@ -706,9 +730,9 @@ class Assessment:
         exam_file_dict = {'school_year': '20{}/20{}'.format(self.exam_year[:2], self.exam_year[2:]),
                           'classlevel': exam_file.classlevel.upper(),
                           'classcode': exam_file.classcode.upper(),
-                          'subject': exam_file.subject.lower(),
+                          'subject': exam_file.subject.title(),
                           'teacher': exam_file.teacher.upper(),
-                          'exam_type': self.assessment.lower(),
+                          'exam_type': self.assessment.title(),
                           'file_code': '{}-{}'.format(exam_file.classcode.upper(),
                                                       exam_file.subject.upper()),
                           'tch_file_rank': '{}({})'.format(exam_file.teacher.upper(), file_rank),
@@ -720,10 +744,9 @@ class Assessment:
                                                datetime.datetime.now().strftime('%H:%M'))
 
         # template: (root)/template/html/check_mark/
-        html_check_mark_folder = os.path.join(self.html_template_folder, 'check_mark')
+        html_check_mark_folder = os.path.join(self.html_template_root_folder, 'check_mark')
         # need to add code to select template by assessment
         # chi / eng / normal / (daily only)
-
 
         css = os.path.join(html_check_mark_folder, 'check_mark.css')
         print(html_check_mark_folder)
@@ -779,7 +802,7 @@ class Assessment:
 
             pdf_merger = PdfFileMerger()
             file_handles = []
-            env = Environment(loader=FileSystemLoader(self.html_template_folder))
+            env = Environment(loader=FileSystemLoader(self.html_template_root_folder))
             options = {
                 'page-size': 'A4',
                 'margin-top': '1.0cm',
@@ -801,6 +824,7 @@ class Assessment:
             pdfkit.from_file(html_save, summary_save, options=options)
             pdf_merger.append(summary_save)
 
+            # subj_key ({class_code}{subject_code}) as the unique key
             self.exam_file_state_df['key'] = self.exam_file_state_df['subj_key']
             self.exam_file_state_df.set_index('key', inplace=True)
             self.exam_file_state_df.sort_values(by=['room', 'tch', 'subj_key'],
@@ -823,7 +847,7 @@ class Assessment:
 
             for n, (key, exam_file_state) in enumerate(exam_file_state_dict.items(), start=1):
                 # restrict n to debug
-                if n <= 20:  # 1000
+                if n <= 500:  # 1000
                     if self.assessment_exam_file_dict[key].check_file():
                         temp_path = self.db_to_pdf(self.assessment_exam_file_dict[key], file_rank_dict[key])
                         print('#{}-{}: {}'.format(n, key, temp_path))
@@ -835,12 +859,345 @@ class Assessment:
                 pdf_merger.write(file_object)
             print('check files generated: {}'.format(merged_check_mark_file))
 
-    def analysis_to_pdf(self):
-        from jinja2 import Environment
-        from jinja2 import FileSystemLoader
-        # need wkhtmltopdf by brew
-        import pdfkit
+    def generate_junior_analysis(self):
 
+        junior_class_dict = {'s1': ['S1A', 'S1B', 'S1C', 'S1D'],
+                             's2': ['S2A', 'S2B', 'S2C', 'S2D'],
+                             's3': ['S3A', 'S3B', 'S3C', 'S3D']}
+
+        mark_col_ut_dict = {'s1': ['chi', 'eng', 'mth', 'chs', 'geo', 'isc'],
+                            's2': ['chi', 'eng', 'mth', 'chs', 'hst', 'geo', 'isc'],
+                            's3': ['chi', 'eng', 'mth', 'chs', 'hst', 'geo', 'eco', 'phy', 'chm', 'bio']}
+
+        stat_col_type_list = ['No of Ss', 'Passing%', '0 - 10 (excluding 10)', '10 - 20 (excluding 20)',
+                              '20 - 30 (excluding 30)', '30 - 40 (excluding 40)', '40 - 50 (excluding 50)',
+                              '50 - 60 (excluding 60)', '60 - 70 (excluding 70)', '70 - 80 (excluding 80)',
+                              '80 - 90 (excluding 90)', '90 - 100']
+
+        print_wm_header_dict = {'WM': 'wm', 'Class Rank': 'rank', 'Form Rank': 'rank', '及格科目': 'rank'}
+
+        pdf_merger_master = PdfFileMerger()
+        pdf_merger_ct = PdfFileMerger()
+
+        junior_analysis_file = '2021-final-s123-analysis_Final.xlsm'
+        junior_analysis_file = self.analysis_file_dict['s123']
+
+        exam_type = junior_analysis_file.split('-')[1]
+        junior_analysis_open = os.path.join(self.db_folder, junior_analysis_file)
+        print(junior_analysis_open)
+
+        student_df = pd.read_excel(junior_analysis_open, sheet_name='print')
+        statistics_df = pd.read_excel(junior_analysis_open, sheet_name='stat')
+
+        passmark, top = 50, 30
+        for classlevel, classlist in junior_class_dict.items():
+            for classcode in classlist:
+
+                class_df = student_df[student_df['classcode'] == classcode].copy()
+                statistics_col = ['item'] + mark_col_ut_dict[classlevel] + ['wm']
+                stat_temp_df = statistics_df[statistics_df['classcode'] == classcode][statistics_col]
+                class_stat_dict = stat_temp_df.to_dict('records')
+
+                # stu_g   chi_g	eng_g	mth_g	chs_g	hst_g   geo_g	eco_g	phy_g	chm_g	bio_g   wm_g
+                print_stuinfo = ['stuinfo_g']
+                class_df['stuinfo_g'] = [[x1, x2, x3] for x1, x2, x3 in zip(class_df['key'],
+                                                                            class_df['chname'],
+                                                                            class_df['sex'])]
+
+                # need class student counter
+                print_stu_header = ['Class/No.', 'Chi Name', 'sex']
+                print_stu_header_dict = {'Class/No.': 'key', 'Chi Name': 'chname', 'Sex': 'sex'}
+                print_subject_header_dict = {}
+                print_subject = [col + '_g' for col in mark_col_ut_dict[classlevel]]
+
+                # build subject item group
+                for subject in mark_col_ut_dict[classlevel]:
+                    rank_col = subject.title() + ' Form Rank'
+                    # rank_col = 'Form Rank'
+                    # add a selector for bik grade later
+                    if subject in mark_col_ut_dict[classlevel]:
+                        # print(subject)
+                        print_subject_header_dict[subject.title()] = '"mark"'
+                        print_subject_header_dict[rank_col] = '"rank"'
+                        # build subject item group
+                        class_df[subject + '_s'] = class_df[subject].apply(lambda x: '{:.2f}'.format(x))
+                        class_df[subject + '_p'] = class_df[subject].apply(
+                            lambda x: '"mark"' if x >= passmark else '"mark fail"')
+                        class_df[rank_col + '_s'] = class_df[rank_col].astype(int)
+                        class_df[rank_col + '_p'] = class_df[rank_col].apply(
+                            lambda x: '"rank top"' if x <= top else '"rank"')
+                        # build subject group
+                        class_df[subject + '_g'] = [[x1, x2, x3, x4] for x1, x2, x3, x4 in
+                                                    zip(class_df[subject+'_s'], class_df[subject+'_p'],
+                                                        class_df[rank_col+'_s'], class_df[rank_col+'_p'])]
+                    else:
+                        pass
+
+                # build wm item group
+                class_df['wm_p'] = class_df['wm'].apply(lambda x: '"mark"' if x >= passmark else '"mark fail"')
+                class_df['crank_p'] = class_df['Class Rank'].apply(lambda x: '"rank top"' if x <= 10 else '"rank"')
+                class_df['frank_p'] = class_df['Form Rank'].apply(lambda x: '"rank top"' if x <= top else '"rank"')
+                class_df['wm_g'] = [[x1, x2, x3, x4, x5, x6, x7] for x1, x2, x3, x4, x5, x6, x7 in zip(
+                    class_df['wm'].apply(lambda x: '{:.2f}'.format(x)),
+                    class_df['wm_p'],
+                    class_df['Class Rank'].astype(int),
+                    class_df['crank_p'],
+                    class_df['Form Rank'].astype(int),
+                    class_df['frank_p'],
+                    class_df['及格科目'].astype(int))]
+
+                print_wm = ['wm_g']
+                print_col = print_stuinfo + print_subject + print_wm
+                # class_df.to_excel('test.xlsx', index=False)
+                # class_df[print_col].to_excel('print.xlsx', index=False)
+
+                student_dict = class_df[print_col].to_dict('records')
+
+                # setup for jinja2
+                html_analysis_folder = os.path.join(self.html_template_root_folder, 'analysis')
+                env = Environment(loader=FileSystemLoader(html_analysis_folder))
+                template = env.get_template('analysis_template_junior_ut.html')
+                css = os.path.join(html_analysis_folder, 'analysis_template_junior.css')
+
+                print_date = 'Print: {} ({})'.format(datetime.datetime.now().strftime('%Y-%m-%d'),
+                                                     datetime.datetime.now().strftime('%H:%M'))
+                class_info_dict = self.ct_dict[classcode.lower()]
+                class_info_dict['exam_year'] = self.exam_year
+                class_info_dict['exam_name'] = exam_type.title()
+                class_info_dict['classcode'] = classcode.upper()
+                class_info_dict['print_date'] = print_date
+
+                template_vars = {'students': student_dict,
+                                 'class_dict': class_info_dict,
+                                 'statistics': class_stat_dict,
+                                 'statistics_header': statistics_col,
+                                 'statistics_col': stat_col_type_list,
+                                 'print_stu_header': print_stu_header_dict,
+                                 'print_subject_header': print_subject_header_dict,
+                                 'print_wm_header': print_wm_header_dict,
+                                 'print_subjects': print_subject,
+                                 'print_stuinfo': print_stuinfo,
+                                 'print_wm': print_wm,
+                                 'css': css,
+                                 }
+
+                # print(print_stu_header_dict)
+                # print(print_subject_header_dict)
+                # print(print_wm_header_dict)
+
+                options = {'page-size': 'A4',
+                           'orientation': 'landscape',
+                           'margin-top': '1.0cm',
+                           'margin-right': '1.0cm',
+                           'margin-bottom': '0.5cm',
+                           'margin-left': '1.0cm',
+                           'encoding': "UTF-8",
+                           # 'encoding': 'ISO-8859-1',
+                           'no-outline': None,
+                           'enable-local-file-access': None}
+
+                html_out = template.render(template_vars)
+                html_save = os.path.join(self.db_folder, 'dump', 'temp.html')
+                pdf_save = os.path.join(self.db_folder, 'dump',
+                                        self.exam_year + '_' + exam_type + '_'
+                                        + self.assessment + '_' + classcode.lower() + '.pdf')
+
+                with open(html_save, 'w', encoding='utf-8') as f:
+                    f.write(html_out)
+                    f.close()
+
+                pdfkit.from_file(html_save, pdf_save, css=css, options=options)
+                print('{}: {} saved.'.format(classcode, pdf_save))
+
+                pdf_merger_master.append(pdf_save)
+                pdf_merger_ct.append(pdf_save)
+                pdf_merger_ct.append(pdf_save)
+
+        analysis_file_master = os.path.join(self.assessment_folder, 'pdf',
+                                            self.exam_year + '_' + exam_type + '_' + 'analysis_junior.pdf')
+        analysis_file_ct = os.path.join(self.assessment_folder, 'pdf',
+                                        self.exam_year + '_' + exam_type + '_' + 'analysis_junior_ct.pdf')
+
+        with open(analysis_file_master, 'wb') as file_object:
+            pdf_merger_master.write(file_object)
+
+        with open(analysis_file_ct, 'wb') as file_object:
+            pdf_merger_ct.write(file_object)
+
+        print(f'class analysis pdf generated: { analysis_file_master }')
+
+    def generate_senior_analysis(self):
+
+        senior_class_dict = {'s4': ['S4A', 'S4B', 'S4C', 'S4D'],
+                             's5': ['S5A', 'S5B', 'S5C', 'S5D'],
+                             's6': ['S6A', 'S6B', 'S6C', 'S6D']}
+
+        mark_col_ut_dict = {'s4': ['chi', 'eng', 'mth', 'm1', 'm2', 'lst',
+                                   'chs', 'hst', 'geo', 'eco', 'phy', 'chm', 'bio', 'baf', 'ict'],
+                            's5': ['chi', 'eng', 'mth', 'm1', 'm2', 'lst',
+                                   'chs', 'hst', 'geo', 'eco', 'phy', 'chm', 'bio', 'baf', 'ict'],
+                            's6': ['chi', 'eng', 'mth', 'm1', 'm2', 'lst',
+                                   'chs', 'hst', 'geo', 'eco', 'phy', 'chm', 'bio', 'baf', 'ict']}
+
+        stat_col_type_list = ['No of Ss', 'Passing%', '0 - 10 (excluding 10)', '10 - 20 (excluding 20)',
+                              '20 - 30 (excluding 30)', '30 - 40 (excluding 40)', '40 - 50 (excluding 50)',
+                              '50 - 60 (excluding 60)', '60 - 70 (excluding 70)', '70 - 80 (excluding 80)',
+                              '80 - 90 (excluding 90)', '90 - 100']
+
+        print_wm_header_dict = {'WM': 'wm', 'Class Rank': 'rank', '及格科目': 'rank'}
+
+        pdf_merger_master = PdfFileMerger()
+        pdf_merger_ct = PdfFileMerger()
+
+        analysis_file = '2021-final-s456-analysis_Final.xlsm'
+        exam_type = analysis_file.split('-')[1]
+        analysis_open = os.path.join(self.db_folder, analysis_file)
+
+        student_df = pd.read_excel(analysis_open, sheet_name='print')
+        statistics_df = pd.read_excel(analysis_open, sheet_name='stat')
+
+        for classlevel, classlist in senior_class_dict.items():
+            passmark = 50 if classlevel == "s4" else 40
+            top = 10
+            for classcode in classlist:
+
+                class_df = student_df[student_df['classcode'] == classcode].copy()
+                statistics_col = ['item'] + mark_col_ut_dict[classlevel] + ['wm']
+                stat_temp_df = statistics_df[statistics_df['classcode'] == classcode][statistics_col]
+                class_stat_dict = stat_temp_df.to_dict('records')
+
+                # stu_g   chi_g	eng_g	mth_g	chs_g	hst_g   geo_g	eco_g	phy_g	chm_g	bio_g   wm_g
+                print_stuinfo = ['stuinfo_g']
+                class_df['stuinfo_g'] = [[x1, x2, x3] for x1, x2, x3 in zip(class_df['key'],
+                                                                            class_df['chname'],
+                                                                            class_df['sex'])]
+                # need class student counter
+                print_stu_header = ['Class/No.', 'Chi Name', 'Sex']
+                print_stu_header_dict = {'Class/No.': 'key', 'Chi Name': 'chname', 'Sex': 'sex'}
+                print_subject_header_dict = {}
+                print_subject = [col + '_g' for col in mark_col_ut_dict[classlevel]]
+
+                # build subject item group
+                for subject in mark_col_ut_dict[classlevel]:
+                    rank_col = subject.title() + ' Form Rank'
+                    # rank_col = 'Form Rank'
+                    # add a selector for bik grade later
+                    if subject in mark_col_ut_dict[classlevel]:
+                        # print(subject)
+                        print_subject_header_dict[subject.title()] = '"mark"'
+                        print_subject_header_dict[rank_col] = '"rank"'
+                        # build subject item group
+                        class_df[subject+'_s'] = class_df[subject].apply(lambda x: '{:.2f}'.format(x))
+                        class_df[subject + '_take'] = class_df[subject].isnull()
+
+                        class_df[subject+'_p'] = class_df[subject].apply(
+                            lambda x: '"mark"' if x >= passmark else '"mark fail"')
+                        class_df[rank_col+'_s'] = (pd.to_numeric(class_df[rank_col], errors='coerce')
+                                                     .fillna(-1).astype('int'))
+                        class_df[rank_col+'_p'] = class_df[rank_col].apply(
+                            lambda x: '"rank top"' if x <= top else '"rank"')
+                        # build subject group
+                        class_df[subject + '_g'] = [[x1, x2, x3, x4, x5] for x1, x2, x3, x4, x5 in
+                                                    zip(class_df[subject+'_take'], class_df[subject+'_s'],
+                                                        class_df[subject+'_p'],
+                                                        class_df[rank_col+'_s'], class_df[rank_col+'_p'])]
+                    else:
+                        pass
+
+                # build wm item group
+                class_df['wm_p'] = class_df['wm'].apply(lambda x: '"mark"' if x >= passmark else '"mark fail"')
+                class_df['crank_p'] = class_df['Class Rank'].apply(lambda x: '"rank top"' if x <= 10 else '"rank"')
+                # class_df['frank_p'] = class_df['Form Rank'].apply(lambda x: '"rank top"' if x <= top else '"rank"')
+                class_df['wm_g'] = [[x1, x2, x3, x4, x5] for x1, x2, x3, x4, x5 in zip(
+                    class_df['wm'].apply(lambda x: '{:.2f}'.format(x)),
+                    class_df['wm_p'],
+                    class_df['Class Rank'].astype(int),
+                    class_df['crank_p'],
+                    # class_df['Form Rank'].astype(int),
+                    # class_df['frank_p'],
+                    class_df['及格科目'].astype(int))]
+
+                print_wm = ['wm_g']
+                print_col = print_stuinfo + print_subject + print_wm
+                # class_df.to_excel('test.xlsx', index=False)
+                # class_df[print_col].to_excel('print.xlsx', index=False)
+
+                student_dict = class_df[print_col].to_dict('records')
+
+                # setup for jinja2
+                html_analysis_folder = os.path.join(self.html_template_root_folder, 'analysis')
+                env = Environment(loader=FileSystemLoader(html_analysis_folder))
+                template = env.get_template('analysis_template_senior.html')
+                css = os.path.join(html_analysis_folder, 'analysis_template_senior.css')
+
+                print_date = 'Print: {} ({})'.format(datetime.datetime.now().strftime('%Y-%m-%d'),
+                                                     datetime.datetime.now().strftime('%H:%M'))
+                class_info_dict = self.ct_dict[classcode.lower()]
+                class_info_dict['exam_year'] = self.exam_year
+                class_info_dict['exam_name'] = exam_type.title()
+                class_info_dict['classcode'] = classcode.upper()
+                class_info_dict['print_date'] = print_date
+
+                template_vars = {'students': student_dict,
+                                 'class_dict': class_info_dict,
+                                 'statistics': class_stat_dict,
+                                 'statistics_header': statistics_col,
+                                 'statistics_col': stat_col_type_list,
+                                 'print_stu_header': print_stu_header_dict,
+                                 'print_subject_header': print_subject_header_dict,
+                                 'print_wm_header': print_wm_header_dict,
+                                 'print_subjects': print_subject,
+                                 'print_stuinfo': print_stuinfo,
+                                 'print_wm': print_wm,
+                                 'css': css,
+                                 }
+
+                # print(print_stu_header_dict)
+                # print(print_subject_header_dict)
+                # print(print_wm_header_dict)
+
+                options = {'page-size': 'A4',
+                           'orientation': 'landscape',
+                           'margin-top': '1.0cm',
+                           'margin-right': '0.8cm',
+                           'margin-bottom': '0.5cm',
+                           'margin-left': '0.8cm',
+                           'encoding': "UTF-8",
+                           # 'encoding': 'ISO-8859-1',
+                           'no-outline': None,
+                           'enable-local-file-access': None}
+
+                html_out = template.render(template_vars)
+                html_save = os.path.join(self.db_folder, 'dump', 'temp.html')
+                pdf_save = os.path.join(self.db_folder, 'dump',
+                                        self.exam_year + '_' + exam_type + '_'
+                                        + self.assessment + '_' + classcode.lower() + '.pdf')
+
+                with open(html_save, 'w', encoding='utf-8') as f:
+                    f.write(html_out)
+                    f.close()
+
+                pdfkit.from_file(html_save, pdf_save, css=css, options=options)
+                print('{}: {} saved.'.format(classcode, pdf_save))
+
+                pdf_merger_master.append(pdf_save)
+                pdf_merger_ct.append(pdf_save)
+                pdf_merger_ct.append(pdf_save)
+
+        analysis_file_master = os.path.join(self.assessment_folder, 'pdf',
+                                            self.exam_year + '_' + exam_type + '_' + 'analysis_senior.pdf')
+        analysis_file_ct = os.path.join(self.assessment_folder, 'pdf',
+                                        self.exam_year + '_' + exam_type + '_' + 'analysis_senior_ct.pdf')
+
+        with open(analysis_file_master, 'wb') as file_object:
+            pdf_merger_master.write(file_object)
+
+        with open(analysis_file_ct, 'wb') as file_object:
+            pdf_merger_ct.write(file_object)
+
+        print(f'class analysis pdf generated: { analysis_file_master }')
+
+    def trash(self):
         work_col_ext = ['key', 'regno', 'enname', 'chname', 'sex', 'classlevel', 'classcode', 'classno',
                         'chi', 'eng', 'mth', 'chs', 'hst', 'geo', 'eco', 'isc', 'phy', 'chm', 'bio', 'bik', 'lst',
                         'pth', 'cps', 'via', 'mus', 'ped', 'dte', 'hec', 'x',
@@ -866,121 +1223,5 @@ class Assessment:
                          'Bio Form Rank', 'Bik Form Rank', 'Lst Form Rank', 'Pth Form Rank', 'Cps Form Rank',
                          'Via Form Rank', 'Mus Form Rank', 'Ped Form Rank', 'Dte Form Rank', 'Hec Form Rank',
                          'Class Rank', 'Form Rank', '及格科目', 'Improved Rank']
-
-        work_col_filter_s3 = ['key',
-                               # 'regno', 'enname',
-                              'chname', 'sex',
-                              # 'classlevel', 'classcode', 'classno',
-                              'chi', 'Chi Form Rank',
-                              'eng', 'Eng Form Rank',
-                              'mth', 'Mth Form Rank',
-                              'chs', 'Chs Form Rank',
-                              'hst', 'Hst Form Rank',
-                              'geo', 'Geo Form Rank',
-                              'eco', 'Eco Form Rank',
-                              'phy', 'Phy Form Rank',
-                              'chm', 'Chm Form Rank',
-                              'bio', 'Bio Form Rank',
-                              # 'x', 'x rank',
-                              'wm', 'Class Rank', 'Form Rank', '及格科目',
-                              # 'wm1',
-                              # 'improved', '1200', 'improved2', 'temp',
-                              # 'Improved Rank',
-                              ]
-
-        junior_analysis_save = self.analysis_file_dict['s123']
-        junior_analysis_save = '2021-ut1-s123-analysis.xlsm'
-        filter_class_dict = {'S1': ['S1A', 'S1B', 'S1C', 'S1D'],
-                             'S2': ['S2A', 'S2B', 'S2C', 'S2D'],
-                             'S3': ['S3A', 'S3B', 'S3C', 'S3D'],
-                             'S4': ['S4A', 'S4B', 'S4C', 'S4D'],
-                             'S5': ['S5A', 'S5B', 'S5C', 'S5D'],
-                             'S6': ['S6A', 'S6B', 'S6C', 'S6D']}
-        filter_class = 'S3A'
-        student_df = pd.read_excel(junior_analysis_save, sheet_name='work')
-        student_df = student_df[student_df['classcode'] == filter_class][work_col_filter_s3]
-
-        # change display format of mark and rank columns
-        work_col_stuinfo = ['key', 'chname', 'sex']
-        work_col_subject = ['chi', 'eng', 'mth', 'chs', 'hst',
-                            'geo', 'eco', 'isc', 'phy', 'chm',
-                            'bio', 'bik', 'lst', 'pth', 'cps',
-                            'via', 'mus', 'ped', 'dte', 'hec']
-
-        work_col_subject_rank = ['Chi Form Rank', 'Eng Form Rank', 'Mth Form Rank', 'Chs Form Rank', 'Hst Form Rank',
-                                 'Geo Form Rank', 'Eco Form Rank', 'Isc Form Rank', 'Phy Form Rank', 'Chm Form Rank',
-                                 'Bio Form Rank', 'Bik Form Rank', 'Lst Form Rank', 'Pth Form Rank', 'Cps Form Rank',
-                                 'Via Form Rank', 'Mus Form Rank', 'Ped Form Rank', 'Dte Form Rank', 'Hec Form Rank']
-        work_col_wm = ['wm', 'wm1', 'improved']
-        work_col_wm_rank = ['Class Rank', 'Form Rank', '及格科目', 'Improved Rank']
-
-        print_subject_filter = [col+'_g' for col in work_col_subject if col in work_col_filter_s3]
-        print_wm_filter = [col+'_s' for col in work_col_wm + work_col_wm_rank if col in work_col_filter_s3]
-        print_col = work_col_stuinfo + print_subject_filter + print_wm_filter
-        # key	chname	sex
-        # chi_g	eng_g	mth_g	chs_g	hst_g
-        # geo_g	eco_g	phy_g	chm_g	bio_g
-        # wm_s	Class Rank_s	Form Rank_s	及格科目_s
-
-        print(print_col)
-
-        for subject in work_col_subject:
-            rank_col = subject.title() + ' Form Rank'
-
-            if subject in work_col_filter_s3:
-                student_df[subject+'_s'] = student_df[subject].apply(lambda x: '{:.2f}'.format(x))
-                student_df[rank_col+'_s'] = student_df[rank_col].apply(lambda x: '{:.0f}'.format(x))
-                student_df[subject+'_p'] = (student_df[subject] >= 50)
-                student_df[rank_col+'_p'] = (student_df[rank_col] <= 30)
-                student_df[subject+'_g'] = [[x1, x2, x3, x4] for x1, x2, x3, x4 in zip(student_df[subject+'_s'],
-                                                                                       student_df[subject+'_p'],
-                                                                                       student_df[rank_col+'_s'],
-                                                                                       student_df[rank_col+'_p'])]
-        for column in work_col_wm:
-            if column in work_col_filter_s3:
-                student_df[column+'_s'] = student_df[column].apply(lambda x: '{:.2f}'.format(x))
-
-        for column in work_col_wm_rank:
-            if column in work_col_filter_s3:
-                student_df[column+'_s'] = student_df[column].apply(lambda x: '{:.0f}'.format(x))
-
-        student_df[print_col].to_excel('print.xlsx', index=False)
-        students = student_df[print_col].to_dict(orient='records')
-
-        env = Environment(loader=FileSystemLoader(self.html_template_folder))
-        template = env.get_template('analysis_template.html')
-        title = pathlib.Path(junior_analysis_save).name + ' - ' + filter_class
-        css = os.path.join(self.html_template_folder, 'print.css')
-        template_vars = {'title': title,
-                         'students': students,
-                         'print_subjects': print_subject_filter,
-                         'print_stuinfo': work_col_stuinfo,
-                         'print_wm': print_wm_filter,
-                         'css': css,
-                         }
-        options = {
-            'page-size': 'A4',
-            'margin-top': '1.0cm',
-            'margin-right': '1.0cm',
-            'margin-bottom': '0.5cm',
-            'margin-left': '1.0cm',
-            'encoding': "UTF-8",
-            #'encoding': 'ISO-8859-1',
-            'no-outline': None,
-            'enable-local-file-access': None
-        }
-
-        html_out = template.render(template_vars)
-        html_save = os.path.join(self.assessment_home_folder, filter_class.lower() + '.html')
-        pdf_save = os.path.join(self.assessment_home_folder, filter_class.lower() + '.pdf')
-        print(html_out)
-        with open(html_save, 'w', encoding='utf-8') as f:
-            f.write(html_)
-            f.close()
-        print(html_)
-        pdfkit.from_file(html_save, pdf_save, css=css, options=options)
-
-        print('{}: {} saved.'.format(filter_class, html_save))
-        print('{}: {} saved.'.format(filter_class, pdf_save))
 
 
